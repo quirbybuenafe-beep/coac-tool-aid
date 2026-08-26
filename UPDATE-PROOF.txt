@@ -1,0 +1,7 @@
+COAC cumulative update v26
+- Added post-return evaluation workflow
+- Added return condition and remarks fields
+- Remarks persist in transaction history and room history
+- Tool returns can send a numbered unit directly to maintenance
+- Damaged/missing/maintenance room-key returns keep the room unavailable
+- All previous cumulative updates retained
