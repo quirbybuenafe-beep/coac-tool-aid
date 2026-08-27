@@ -1,7 +1,37 @@
-COAC cumulative update v26
-- Added post-return evaluation workflow
-- Added return condition and remarks fields
-- Remarks persist in transaction history and room history
-- Tool returns can send a numbered unit directly to maintenance
-- Damaged/missing/maintenance room-key returns keep the room unavailable
-- All previous cumulative updates retained
+COAC cumulative update v27
+USER PORTAL + PRINTABLE BORROWING / RELEASE FORMS
+
+Added user version
+- Existing legacy COAC accounts remain Admin so the current dashboard is preserved.
+- New registrations can be Student or Professor accounts.
+- User portal has only Home, Inventory, Rooms & Keys, and My Activity.
+- Users cannot add/delete inventory, change quantities, edit units, mark maintenance, return records, erase transactions, or see other borrowers in the UI.
+- User identity is locked to the signed-in account for requests.
+- Users can submit tool and room-key requests instead of directly releasing assets.
+- Overdue users are blocked from making a new request until the overdue record is cleared.
+- User portal only displays the signed-in user's activity and post-return remarks.
+
+Added admin approval flow
+- User requests enter Transactions as Pending.
+- Admin can Approve or Decline pending tool and room-key requests.
+- Approval captures the real release date/time and changes the asset/key to borrowed.
+- Pending requests do not reserve inventory until approved.
+
+Added COAC printable form
+- A4 COAC-branded Equipment / Room Key Borrowing & Release Form.
+- Release Form, Return Form, and Complete Record print modes.
+- Auto transaction number, borrower ID/program, asset/key ID, borrowed date/time, due date, purpose, return evaluation, and remarks.
+- Default releasing officer: Sir John Ray.
+- Borrower and releasing/receiving signature lines.
+- COAC BSICE / BSMxE / BETMxT program marks in the form header.
+- Dashboard UI is hidden automatically when printing.
+
+All v26 features retained
+- Post-return condition and remarks.
+- Numbered-unit maintenance handling.
+- Room-key maintenance handling.
+- Previous cumulative UI and inventory updates.
+
+IMPORTANT PRODUCTION NOTE
+- This build adds application-level role separation and recognizes an Appwrite `admin` label when present.
+- Before public/production rollout, configure Appwrite row/table permissions (and preferably admin labels) so users cannot inspect or mutate other users' records by bypassing the UI.

@@ -6,9 +6,17 @@ import { account, appwriteConfig, ID, Query, tables } from "../lib/appwrite";
 
 type View = "Dashboard" | "Inventory" | "Rooms & Keys" | "Borrowers" | "Transactions";
 type ItemStatus = "Available" | "Borrowed" | "Maintenance";
-type LoanStatus = "On time" | "Due today" | "Overdue" | "Key out" | "Returned";
+type LoanStatus = "Pending" | "On time" | "Due today" | "Overdue" | "Key out" | "Returned" | "Declined";
 type LoanKind = "Tool" | "Room Key";
 type BorrowerType = "Student" | "Professor";
+type AccessRole = "admin" | "student" | "professor";
+type PrintFormMode = "release" | "return" | "complete";
+type AccountPrefs = Models.Preferences & {
+  role?: AccessRole;
+  studentId?: string;
+  program?: string;
+  borrowerType?: BorrowerType;
+};
 type ModalMode = "tool" | "room";
 type ManageModalMode = "addTool" | "addRoom";
 type DeleteTarget = { kind: "tool" | "room"; id: string; label: string };
@@ -50,6 +58,9 @@ type Loan = {
   assetId: string;
   borrowed: string;
   borrowedAtIso?: string;
+  requestedAt?: string;
+  requestedAtIso?: string;
+  requestedDays?: number;
   due: string;
   returnedAt?: string;
   returnCondition?: string;
@@ -194,6 +205,27 @@ const unitNumberOf = (loan: Loan) => loan.unitNumber ?? 1;
 const assetLabelOf = (loan: Loan) =>
   kindOf(loan) === "Tool" ? `${loan.assetId}-${unitNumberOf(loan)}` : loan.assetId;
 const TRANSACTION_ERASE_PASSWORD = "coac123";
+const DEFAULT_RELEASING_OFFICER = "Sir John Ray";
+
+const accountPrefsOf = (user: Models.User<Models.Preferences>): AccountPrefs =>
+  user.prefs as AccountPrefs;
+
+const accessRoleOf = (user: Models.User<Models.Preferences>): AccessRole => {
+  const prefs = accountPrefsOf(user);
+  const labels = Array.isArray((user as Models.User<Models.Preferences> & { labels?: string[] }).labels)
+    ? (user as Models.User<Models.Preferences> & { labels?: string[] }).labels ?? []
+    : [];
+  if (labels.includes("admin")) return "admin";
+  if (prefs.role === "student" || prefs.role === "professor") return prefs.role;
+  // Legacy COAC accounts created before role support stay administrative.
+  return "admin";
+};
+
+const transactionNumberOf = (loan: Loan) => {
+  const date = new Date(loan.borrowedAtIso ?? loan.requestedAtIso ?? loan.id);
+  const year = Number.isNaN(date.getTime()) ? new Date().getFullYear() : date.getFullYear();
+  return `COAC-${year}-${String(loan.id).slice(-6).padStart(6, "0")}`;
+};
 
 const cloudRowId = (kind: "tool" | "room" | "loan", value: string | number) => {
   const raw = String(value);
@@ -279,6 +311,7 @@ export default function Home() {
   const [returnEvaluationLoanId, setReturnEvaluationLoanId] = useState<number | null>(null);
   const [returnCondition, setReturnCondition] = useState("Good");
   const [returnSendMaintenance, setReturnSendMaintenance] = useState(false);
+  const [printLoanId, setPrintLoanId] = useState<number | null>(null);
   const [cloudUser, setCloudUser] = useState<Models.User<Models.Preferences> | null>(null);
   const [cloudStatus, setCloudStatus] = useState<CloudStatus>("checking");
   const [cloudHydrated, setCloudHydrated] = useState(false);
@@ -485,7 +518,13 @@ export default function Home() {
     return () => clearTimeout(id);
   }, [toast]);
 
-  const active = loans.filter((loan) => loan.status !== "Returned");
+  const accessRole = cloudUser ? accessRoleOf(cloudUser) : "admin";
+  const isAdmin = accessRole === "admin";
+  const accountPrefs = cloudUser ? accountPrefsOf(cloudUser) : ({} as AccountPrefs);
+  const accountBorrowerType: BorrowerType = accessRole === "professor" ? "Professor" : "Student";
+  const accountStudentId = String(accountPrefs.studentId ?? "").trim();
+  const accountProgram = String(accountPrefs.program ?? "").trim();
+  const active = loans.filter((loan) => !["Returned", "Pending", "Declined"].includes(loan.status));
   const activeToolLoans = active.filter((loan) => kindOf(loan) === "Tool");
   const activeRoomLoans = active.filter((loan) => kindOf(loan) === "Room Key");
   const toolQuantity = (tool: Tool) => Math.max(1, tool.quantity ?? 1);
@@ -567,6 +606,9 @@ export default function Home() {
     : {};
   const returnEvaluationLoan = returnEvaluationLoanId
     ? loans.find((loan) => loan.id === returnEvaluationLoanId) ?? null
+    : null;
+  const printLoan = printLoanId
+    ? loans.find((loan) => loan.id === printLoanId) ?? null
     : null;
   const selectedBorrower = selectedBorrowerId
     ? loans.find((loan) => loan.studentId === selectedBorrowerId)
@@ -1109,6 +1151,163 @@ export default function Home() {
     setToast(`${room.room} key released to ${loan.student}.`);
   };
 
+  const requestToolForUser = ({ assetId, unitNumber, days }: { assetId: string; unitNumber: number; days: number }) => {
+    if (!cloudUser || isAdmin) return;
+    const tool = tools.find((entry) => entry.id === assetId);
+    if (!tool || !availableUnitNumbers(tool).includes(unitNumber)) {
+      setToast("That numbered tool is no longer available. Choose another unit.");
+      return;
+    }
+    if (!accountStudentId) {
+      setToast("Your account is missing a TUPV/employee ID. Sign out and update your user profile.");
+      return;
+    }
+    const duplicatePending = loans.some(
+      (loan) =>
+        loan.status === "Pending" &&
+        normalizeBorrowerId(loan.studentId) === normalizeBorrowerId(accountStudentId) &&
+        loan.assetId === assetId &&
+        unitNumberOf(loan) === unitNumber,
+    );
+    if (duplicatePending) {
+      setToast("You already have a pending request for this exact unit.");
+      return;
+    }
+    const requestedAt = new Date();
+    const request: Loan = {
+      id: Date.now(),
+      student: cloudUser.name || cloudUser.email,
+      studentId: accountStudentId,
+      program: accountProgram || "Unspecified",
+      borrowerType: accountBorrowerType,
+      item: unitLabelOf(tool, unitNumber),
+      assetId: tool.id,
+      unitNumber,
+      borrowed: "Awaiting release",
+      requestedAt: fmtDateTime(requestedAt),
+      requestedAtIso: requestedAt.toISOString(),
+      requestedDays: days,
+      due: "—",
+      status: "Pending",
+      kind: "Tool",
+    };
+    setLoans((current) => [request, ...current]);
+    setToast(`${request.item} request sent to Tool Aid for approval.`);
+  };
+
+  const requestRoomForUser = ({ roomId, purpose }: { roomId: string; purpose: string }) => {
+    if (!cloudUser || isAdmin) return;
+    const room = roomKeys.find((entry) => entry.id === roomId && entry.status === "Available");
+    if (!room) {
+      setToast("That room key is no longer available.");
+      return;
+    }
+    if (!accountStudentId) {
+      setToast("Your account is missing a TUPV/employee ID. Sign out and update your user profile.");
+      return;
+    }
+    const duplicatePending = loans.some(
+      (loan) =>
+        loan.status === "Pending" &&
+        kindOf(loan) === "Room Key" &&
+        normalizeBorrowerId(loan.studentId) === normalizeBorrowerId(accountStudentId) &&
+        loan.assetId === roomId,
+    );
+    if (duplicatePending) {
+      setToast("You already have a pending request for this room key.");
+      return;
+    }
+    const requestedAt = new Date();
+    const request: Loan = {
+      id: Date.now(),
+      student: cloudUser.name || cloudUser.email,
+      studentId: accountStudentId,
+      program: accountProgram || "Unspecified",
+      borrowerType: accountBorrowerType,
+      item: `${room.room} key`,
+      assetId: room.id,
+      borrowed: "Awaiting release",
+      requestedAt: fmtDateTime(requestedAt),
+      requestedAtIso: requestedAt.toISOString(),
+      due: "—",
+      status: "Pending",
+      kind: "Room Key",
+      purpose: purpose.trim(),
+    };
+    setLoans((current) => [request, ...current]);
+    setToast(`${room.room} key request sent to Tool Aid for approval.`);
+  };
+
+  const approveRequest = (loan: Loan) => {
+    if (loan.status !== "Pending") return;
+    const borrowedAt = new Date();
+    if (kindOf(loan) === "Tool") {
+      const tool = tools.find((entry) => entry.id === loan.assetId);
+      const unitNumber = unitNumberOf(loan);
+      if (!tool || !availableUnitNumbers(tool).includes(unitNumber)) {
+        setToast(`${loan.item} is no longer available. Decline this request or release another unit manually.`);
+        return;
+      }
+      const due = new Date(borrowedAt);
+      due.setDate(due.getDate() + Math.max(1, loan.requestedDays ?? 7));
+      setLoans((current) =>
+        current.map((entry) =>
+          entry.id === loan.id
+            ? {
+                ...entry,
+                borrowed: fmtDateTime(borrowedAt),
+                borrowedAtIso: borrowedAt.toISOString(),
+                due: fmt(due),
+                status: "On time",
+              }
+            : entry,
+        ),
+      );
+      setTools((current) =>
+        current.map((entry) =>
+          entry.id === loan.assetId
+            ? {
+                ...entry,
+                status: availableUnitNumbers(entry).length <= 1 ? "Borrowed" : "Available",
+              }
+            : entry,
+        ),
+      );
+    } else {
+      const room = roomKeys.find((entry) => entry.id === loan.assetId && entry.status === "Available");
+      if (!room) {
+        setToast(`${loan.item} is no longer available.`);
+        return;
+      }
+      setLoans((current) =>
+        current.map((entry) =>
+          entry.id === loan.id
+            ? {
+                ...entry,
+                borrowed: fmtDateTime(borrowedAt),
+                borrowedAtIso: borrowedAt.toISOString(),
+                status: "Key out",
+              }
+            : entry,
+        ),
+      );
+      setRoomKeys((current) =>
+        current.map((entry) =>
+          entry.id === loan.assetId ? { ...entry, status: "Borrowed" } : entry,
+        ),
+      );
+    }
+    setToast(`${loan.item} approved and released to ${loan.student}.`);
+  };
+
+  const declineRequest = (loan: Loan) => {
+    if (loan.status !== "Pending") return;
+    setLoans((current) =>
+      current.map((entry) => (entry.id === loan.id ? { ...entry, status: "Declined" } : entry)),
+    );
+    setToast(`${loan.item} request declined.`);
+  };
+
   const openReturnEvaluation = (loan: Loan) => {
     setReturnEvaluationLoanId(loan.id);
     setReturnCondition("Good");
@@ -1383,6 +1582,22 @@ export default function Home() {
 
   if (!cloudUser) {
     return <CloudLogin onSignedIn={handleSignedIn} />;
+  }
+
+  if (!isAdmin) {
+    return (
+      <UserPortal
+        user={cloudUser}
+        role={accessRole}
+        tools={tools}
+        rooms={roomKeys}
+        loans={loans}
+        onRequestTool={requestToolForUser}
+        onRequestRoom={requestRoomForUser}
+        onSignOut={() => void signOut()}
+        toast={toast}
+      />
+    );
   }
 
   return (
@@ -2687,7 +2902,7 @@ export default function Home() {
                       </thead>
                       {transactionGroups.map((group) => {
                         const isOpen = openTransactionGroups.includes(group.key);
-                        const activeCount = group.loans.filter((loan) => loan.status !== "Returned").length;
+                        const activeCount = group.loans.filter((loan) => !["Returned", "Pending", "Declined"].includes(loan.status)).length;
                         const initials = group.borrower.student
                           .split(" ")
                           .map((part) => part[0])
@@ -2771,19 +2986,54 @@ export default function Home() {
                                   )}
                                 </td>
                                 <td>
-                                  {loan.status !== "Returned" ? (
-                                    <button
-                                      className="small return"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        openReturnEvaluation(loan);
-                                      }}
-                                    >
-                                      {kindOf(loan) === "Room Key" ? "Return key" : "Mark returned"}
-                                    </button>
-                                  ) : (
-                                    <span className="muted">Completed</span>
-                                  )}
+                                  <div className="transaction-row-actions">
+                                    {loan.status === "Pending" ? (
+                                      <>
+                                        <button
+                                          className="small approve-request"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            approveRequest(loan);
+                                          }}
+                                        >
+                                          Approve
+                                        </button>
+                                        <button
+                                          className="small decline-request"
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            declineRequest(loan);
+                                          }}
+                                        >
+                                          Decline
+                                        </button>
+                                      </>
+                                    ) : loan.status !== "Returned" && loan.status !== "Declined" ? (
+                                      <button
+                                        className="small return"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          openReturnEvaluation(loan);
+                                        }}
+                                      >
+                                        {kindOf(loan) === "Room Key" ? "Return key" : "Mark returned"}
+                                      </button>
+                                    ) : (
+                                      <span className="muted">{loan.status === "Declined" ? "Declined" : "Completed"}</span>
+                                    )}
+                                    {!(["Pending", "Declined"].includes(loan.status)) && (
+                                      <button
+                                        type="button"
+                                        className="small print-record-button"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          setPrintLoanId(loan.id);
+                                        }}
+                                      >
+                                        Print form
+                                      </button>
+                                    )}
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -2852,19 +3102,29 @@ export default function Home() {
                             </td>
                             <td><Status value={loan.status} /></td>
                             <td>
-                              {loan.status !== "Returned" ? (
-                                <button
-                                  className="small return"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    openReturnEvaluation(loan);
-                                  }}
-                                >
-                                  Return key
-                                </button>
-                              ) : (
-                                <span className="muted">Completed</span>
-                              )}
+                              <div className="transaction-row-actions">
+                                {loan.status === "Pending" ? (
+                                  <>
+                                    <button className="small approve-request" onClick={(event) => { event.stopPropagation(); approveRequest(loan); }}>Approve</button>
+                                    <button className="small decline-request" onClick={(event) => { event.stopPropagation(); declineRequest(loan); }}>Decline</button>
+                                  </>
+                                ) : loan.status !== "Returned" && loan.status !== "Declined" ? (
+                                  <button
+                                    className="small return"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      openReturnEvaluation(loan);
+                                    }}
+                                  >
+                                    Return key
+                                  </button>
+                                ) : (
+                                  <span className="muted">{loan.status === "Declined" ? "Declined" : "Completed"}</span>
+                                )}
+                                {!(["Pending", "Declined"].includes(loan.status)) && (
+                                  <button className="small print-record-button" onClick={(event) => { event.stopPropagation(); setPrintLoanId(loan.id); }}>Print form</button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -4060,6 +4320,14 @@ export default function Home() {
         </div>
       )}
 
+      {printLoan && (
+        <BorrowingPrintModal
+          loan={printLoan}
+          releasedBy={DEFAULT_RELEASING_OFFICER}
+          onClose={() => setPrintLoanId(null)}
+        />
+      )}
+
       <div className="luntian-corner-credit" aria-label="Powered by Luntian">
         <span>Powered by</span>
         <strong>Luntian</strong>
@@ -4071,6 +4339,471 @@ export default function Home() {
           {toast}
         </div>
       )}
+    </div>
+  );
+}
+
+
+function UserPortal({
+  user,
+  role,
+  tools,
+  rooms,
+  loans,
+  onRequestTool,
+  onRequestRoom,
+  onSignOut,
+  toast,
+}: {
+  user: Models.User<Models.Preferences>;
+  role: AccessRole;
+  tools: Tool[];
+  rooms: RoomKey[];
+  loans: Loan[];
+  onRequestTool: (request: { assetId: string; unitNumber: number; days: number }) => void;
+  onRequestRoom: (request: { roomId: string; purpose: string }) => void;
+  onSignOut: () => void;
+  toast: string;
+}) {
+  type UserView = "Home" | "Inventory" | "Rooms & Keys" | "My Activity";
+  const userViews: UserView[] = ["Home", "Inventory", "Rooms & Keys", "My Activity"];
+  const [view, setView] = useState<UserView>("Home");
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<ToolCategory>("All Tools");
+  const [toolRequest, setToolRequest] = useState<{ tool: Tool; unitNumber: number } | null>(null);
+  const [roomRequest, setRoomRequest] = useState<RoomKey | null>(null);
+  const [printLoan, setPrintLoan] = useState<Loan | null>(null);
+  const prefs = accountPrefsOf(user);
+  const userId = String(prefs.studentId ?? "").trim();
+  const userProgram = String(prefs.program ?? "Unspecified").trim();
+  const normalizedUserId = userId.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const myLoans = loans
+    .filter((loan) => loan.studentId.toUpperCase().replace(/[^A-Z0-9]/g, "") === normalizedUserId)
+    .sort((a, b) => {
+      const aDate = new Date(a.requestedAtIso ?? a.borrowedAtIso ?? a.id).getTime();
+      const bDate = new Date(b.requestedAtIso ?? b.borrowedAtIso ?? b.id).getTime();
+      return bDate - aDate;
+    });
+  const activeLoans = loans.filter((loan) => !["Returned", "Pending", "Declined"].includes(loan.status));
+  const myActive = myLoans.filter((loan) => !["Returned", "Pending", "Declined"].includes(loan.status));
+  const myPending = myLoans.filter((loan) => loan.status === "Pending");
+  const myOverdue = myLoans.filter((loan) => loan.status === "Overdue");
+  const myReturned = myLoans.filter((loan) => loan.status === "Returned");
+  const borrowingBlocked = myOverdue.length > 0;
+
+  const toolQuantity = (tool: Tool) => Math.max(1, tool.quantity ?? 1);
+  const existingUnits = (tool: Tool) => {
+    const deleted = new Set(tool.deletedUnits ?? []);
+    return Array.from({ length: toolQuantity(tool) }, (_, index) => index + 1).filter((unit) => !deleted.has(unit));
+  };
+  const maintenanceUnits = (tool: Tool) => {
+    if (tool.maintenanceUnits !== undefined) return new Set(tool.maintenanceUnits);
+    return new Set(tool.status === "Maintenance" ? existingUnits(tool) : []);
+  };
+  const occupiedUnits = (tool: Tool) =>
+    new Set(
+      activeLoans
+        .filter((loan) => kindOf(loan) === "Tool" && loan.assetId === tool.id)
+        .map((loan) => unitNumberOf(loan)),
+    );
+  const availableUnits = (tool: Tool) => {
+    const maintenance = maintenanceUnits(tool);
+    const occupied = occupiedUnits(tool);
+    return existingUnits(tool).filter((unit) => !maintenance.has(unit) && !occupied.has(unit));
+  };
+  const q = query.trim().toLowerCase();
+  const visibleTools = tools.filter((tool) => {
+    const categoryMatch = category === "All Tools" || tool.category === category;
+    const textMatch = !q || `${tool.id} ${tool.name} ${tool.category} ${tool.location}`.toLowerCase().includes(q);
+    return categoryMatch && textMatch;
+  });
+  const visibleRooms = rooms.filter(
+    (room) => !q || `${room.id} ${room.room} ${room.use}`.toLowerCase().includes(q),
+  );
+  const pageTitle = view === "Home" ? `Welcome, ${user.name || "COAC user"}` : view;
+
+  const submitToolRequest = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!toolRequest || borrowingBlocked) return;
+    const form = new FormData(event.currentTarget);
+    onRequestTool({
+      assetId: toolRequest.tool.id,
+      unitNumber: toolRequest.unitNumber,
+      days: Math.max(1, Number(form.get("days")) || 7),
+    });
+    setToolRequest(null);
+  };
+
+  const submitRoomRequest = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!roomRequest || borrowingBlocked) return;
+    const form = new FormData(event.currentTarget);
+    onRequestRoom({ roomId: roomRequest.id, purpose: String(form.get("purpose") ?? "") });
+    setRoomRequest(null);
+  };
+
+  return (
+    <div className="user-portal">
+      <header className="user-topbar">
+        <button className="user-brand" type="button" onClick={() => setView("Home")}>
+          <span className="user-brand-mark">COAC</span>
+          <span><strong>COAC Tool Aid</strong><small>User Portal</small></span>
+        </button>
+        <nav className="user-nav" aria-label="User portal">
+          {userViews.map((entry) => (
+            <button key={entry} className={view === entry ? "active" : ""} onClick={() => setView(entry)}>
+              {entry}
+            </button>
+          ))}
+        </nav>
+        <div className="user-account">
+          <span className="user-account-copy">
+            <strong>{user.name || user.email}</strong>
+            <small>{role === "professor" ? "Professor" : "Student"} · {userId || "ID not set"}</small>
+          </span>
+          <button type="button" onClick={onSignOut}>Sign out</button>
+        </div>
+      </header>
+
+      <main className="user-main">
+        <section className="user-page-head">
+          <div>
+            <span>COAC SELF-SERVICE</span>
+            <h1>{pageTitle}</h1>
+            <p>
+              {view === "Home"
+                ? `${userProgram} · Request equipment and room keys, then track only your own activity.`
+                : view === "Inventory"
+                  ? "Browse available COAC equipment. Administrative editing is locked in user accounts."
+                  : view === "Rooms & Keys"
+                    ? "See room-key availability without exposing another borrower's private information."
+                    : "Your requests, active loans, returns, evaluations, and printable forms."}
+            </p>
+          </div>
+          {view !== "Home" && (
+            <label className="user-search">
+              <span>⌕</span>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${view.toLowerCase()}...`} />
+              {query && <button type="button" onClick={() => setQuery("")}>×</button>}
+            </label>
+          )}
+        </section>
+
+        {borrowingBlocked && (
+          <section className="user-restriction-banner">
+            <div>
+              <strong>New borrowing requests are temporarily restricted</strong>
+              <p>Return your overdue item before requesting another tool or room key.</p>
+            </div>
+            <b>{myOverdue.length} overdue</b>
+          </section>
+        )}
+
+        {view === "Home" && (
+          <>
+            <section className="user-hero-card">
+              <div>
+                <span className="user-hero-eyebrow">COLLEGE OF AUTOMATION AND CONTROL</span>
+                <h2>Your tools. Your keys. Your record.</h2>
+                <p>Request what you need, wait for Tool Aid approval, and keep a clean personal borrowing trail.</p>
+                <div className="user-hero-actions">
+                  <button type="button" onClick={() => setView("Inventory")}>Request a tool →</button>
+                  <button type="button" className="secondary" onClick={() => setView("Rooms & Keys")}>Request a room key</button>
+                </div>
+              </div>
+              <div className="user-course-marks" aria-label="COAC programs">
+                <img src="/course-logos/bsice-logo.png" alt="BSICE" />
+                <img src="/course-logos/bsmxe-logo.png" alt="BSMxE" />
+                <img src="/course-logos/betmxt-logo.png" alt="BETMxT" />
+              </div>
+            </section>
+
+            <section className="user-stat-grid">
+              <article><span>ACTIVE</span><strong>{myActive.length}</strong><small>Currently released to you</small></article>
+              <article><span>PENDING</span><strong>{myPending.length}</strong><small>Waiting for Tool Aid approval</small></article>
+              <article className={myOverdue.length ? "danger" : ""}><span>OVERDUE</span><strong>{myOverdue.length}</strong><small>Needs immediate return</small></article>
+              <article><span>RETURNED</span><strong>{myReturned.length}</strong><small>Completed records</small></article>
+            </section>
+
+            <section className="user-panel">
+              <div className="user-panel-head">
+                <div><strong>Current activity</strong><small>Your newest requests and active releases</small></div>
+                <button type="button" onClick={() => setView("My Activity")}>Open my activity →</button>
+              </div>
+              <div className="user-activity-cards">
+                {myLoans.slice(0, 4).map((loan) => (
+                  <article key={loan.id}>
+                    <div><span className={`kind-tag ${kindOf(loan) === "Room Key" ? "room" : "tool"}`}>{kindOf(loan)}</span><Status value={loan.status} /></div>
+                    <strong>{loan.item}</strong>
+                    <small className="mono">{assetLabelOf(loan)}</small>
+                    <p>{loan.status === "Pending" ? `Requested ${loan.requestedAt ?? "recently"}` : `Borrowed ${loan.borrowed}`}</p>
+                  </article>
+                ))}
+                {myLoans.length === 0 && <div className="user-empty">No borrowing activity yet. Your first request will appear here.</div>}
+              </div>
+            </section>
+          </>
+        )}
+
+        {view === "Inventory" && (
+          <section className="user-panel">
+            <div className="user-panel-head">
+              <div><strong>Equipment catalog</strong><small>Only available numbered units can be requested</small></div>
+              <span>{visibleTools.length} tools</span>
+            </div>
+            <div className="user-category-tabs">
+              {toolCategories.map((entry) => (
+                <button key={entry} className={category === entry ? "active" : ""} onClick={() => setCategory(entry)}>
+                  <span><ToolCategoryIcon category={entry} /></span>{entry}
+                </button>
+              ))}
+            </div>
+            <div className="user-tool-grid">
+              {visibleTools.map((tool) => {
+                const readyUnits = availableUnits(tool);
+                const total = existingUnits(tool).length;
+                return (
+                  <article key={tool.id}>
+                    <header><span className="mono">{tool.id}</span><Status value={readyUnits.length ? "Available" : tool.status === "Maintenance" ? "Maintenance" : "Borrowed"} /></header>
+                    <h3>{tool.name}</h3>
+                    <p>{tool.category} · {tool.location}</p>
+                    <div className="user-unit-summary"><strong>{readyUnits.length}</strong><span>of {total} units ready</span></div>
+                    <div className="user-unit-buttons">
+                      {existingUnits(tool).map((unit) => {
+                        const ready = readyUnits.includes(unit);
+                        const pending = myPending.some((loan) => loan.assetId === tool.id && unitNumberOf(loan) === unit);
+                        return (
+                          <button
+                            type="button"
+                            key={unit}
+                            disabled={!ready || pending || borrowingBlocked}
+                            className={pending ? "pending" : ""}
+                            onClick={() => setToolRequest({ tool, unitNumber: unit })}
+                          >
+                            <b>{unit}</b><span>{pending ? "Requested" : ready ? "Request" : "Unavailable"}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </article>
+                );
+              })}
+              {visibleTools.length === 0 && <div className="user-empty">No equipment matches your search.</div>}
+            </div>
+          </section>
+        )}
+
+        {view === "Rooms & Keys" && (
+          <section className="user-panel">
+            <div className="user-panel-head">
+              <div><strong>Room & key availability</strong><small>Other borrowers' names and IDs stay private</small></div>
+              <span>{rooms.filter((room) => room.status === "Available").length} available</span>
+            </div>
+            <div className="user-room-grid">
+              {visibleRooms.map((room) => {
+                const pending = myPending.some((loan) => kindOf(loan) === "Room Key" && loan.assetId === room.id);
+                return (
+                  <article key={room.id} className={room.status.toLowerCase()}>
+                    <div className="user-room-state"><i /><strong>{room.status === "Available" ? "AVAILABLE" : room.status === "Borrowed" ? "KEY OUT" : "MAINTENANCE"}</strong></div>
+                    <span className="mono">{room.id}</span>
+                    <h3>{room.room}</h3>
+                    <p>{room.use}</p>
+                    <small>{room.status === "Available" ? "Key is ready at Tool Aid." : room.status === "Borrowed" ? "Key is currently unavailable." : "Room/key is temporarily unavailable."}</small>
+                    <button type="button" disabled={room.status !== "Available" || pending || borrowingBlocked} onClick={() => setRoomRequest(room)}>
+                      {pending ? "Request pending" : room.status === "Available" ? "Request room key →" : "Unavailable"}
+                    </button>
+                  </article>
+                );
+              })}
+              {visibleRooms.length === 0 && <div className="user-empty">No rooms match your search.</div>}
+            </div>
+          </section>
+        )}
+
+        {view === "My Activity" && (
+          <section className="user-panel">
+            <div className="user-panel-head">
+              <div><strong>My borrowing activity</strong><small>Only records tied to {userId || "your account"}</small></div>
+              <span>{myLoans.length} records</span>
+            </div>
+            <div className="table-scroll user-activity-table-wrap">
+              <table className="user-activity-table">
+                <thead><tr><th>Type</th><th>Item / Asset</th><th>Requested / Borrowed</th><th>Due</th><th>Status</th><th>Return evaluation</th><th>Form</th></tr></thead>
+                <tbody>
+                  {myLoans.map((loan) => (
+                    <tr key={loan.id}>
+                      <td><span className={`kind-tag ${kindOf(loan) === "Room Key" ? "room" : "tool"}`}>{kindOf(loan)}</span></td>
+                      <td><strong>{loan.item}</strong><small className="mono">{assetLabelOf(loan)}</small>{loan.purpose && <small>{loan.purpose}</small>}</td>
+                      <td><strong>{loan.status === "Pending" ? loan.requestedAt ?? "Pending" : loan.borrowed}</strong>{loan.requestedAt && loan.status !== "Pending" && <small>Requested {loan.requestedAt}</small>}</td>
+                      <td>{kindOf(loan) === "Room Key" ? "—" : loan.due}</td>
+                      <td><Status value={loan.status} /></td>
+                      <td>
+                        {loan.status === "Returned" ? (
+                          <span className="user-return-note"><strong>{loan.returnCondition ?? "Returned"}</strong><small>{loan.returnedAt}</small>{loan.returnRemarks && <small>{loan.returnRemarks}</small>}</span>
+                        ) : <span className="muted">{loan.status === "Declined" ? "Request declined" : "Not returned yet"}</span>}
+                      </td>
+                      <td>
+                        {!(["Pending", "Declined"].includes(loan.status)) ? (
+                          <button type="button" className="user-print-button" onClick={() => setPrintLoan(loan)}>Print form</button>
+                        ) : <span className="muted">—</span>}
+                      </td>
+                    </tr>
+                  ))}
+                  {myLoans.length === 0 && <tr><td colSpan={7} className="transactions-empty">No personal borrowing records yet.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+      </main>
+
+      {toolRequest && (
+        <div className="backdrop" onMouseDown={() => setToolRequest(null)}>
+          <section className="modal user-request-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="modal-head"><div><span className="eyebrow">TOOL REQUEST</span><h2>Request {toolRequest.tool.name} {toolRequest.unitNumber}</h2><p>Tool Aid must approve and physically release the item before it becomes borrowed.</p></div><button onClick={() => setToolRequest(null)}>×</button></div>
+            <form onSubmit={submitToolRequest}>
+              <div className="user-request-summary"><span className="mono">{toolRequest.tool.id}-{toolRequest.unitNumber}</span><strong>{toolRequest.tool.name} {toolRequest.unitNumber}</strong><small>{toolRequest.tool.category} · {toolRequest.tool.location}</small></div>
+              <label><span>Requested borrowing period</span><select name="days" defaultValue="7"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option></select></label>
+              <div className="user-identity-lock"><strong>Borrower identity locked to your account</strong><span>{user.name} · {userId} · {userProgram}</span></div>
+              <footer><button type="button" className="secondary" onClick={() => setToolRequest(null)}>Cancel</button><button className="primary">Send request →</button></footer>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {roomRequest && (
+        <div className="backdrop" onMouseDown={() => setRoomRequest(null)}>
+          <section className="modal user-request-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="modal-head"><div><span className="eyebrow">ROOM KEY REQUEST</span><h2>Request {roomRequest.room}</h2><p>Tool Aid approves the request before the key is released.</p></div><button onClick={() => setRoomRequest(null)}>×</button></div>
+            <form onSubmit={submitRoomRequest}>
+              <div className="user-request-summary"><span className="mono">{roomRequest.id}</span><strong>{roomRequest.room}</strong><small>{roomRequest.use}</small></div>
+              <label><span>Purpose of room use</span><textarea name="purpose" required placeholder="Laboratory activity, project testing, organization meeting..." /></label>
+              <div className="user-identity-lock"><strong>Borrower identity locked to your account</strong><span>{user.name} · {userId} · {userProgram}</span></div>
+              <footer><button type="button" className="secondary" onClick={() => setRoomRequest(null)}>Cancel</button><button className="primary">Send room request →</button></footer>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {printLoan && <BorrowingPrintModal loan={printLoan} releasedBy={DEFAULT_RELEASING_OFFICER} onClose={() => setPrintLoan(null)} />}
+      {toast && <div className="toast user-toast"><b>✓</b>{toast}</div>}
+      <div className="user-luntian-credit"><span>Powered by</span><strong>Luntian</strong></div>
+    </div>
+  );
+}
+
+function BorrowingPrintModal({
+  loan,
+  releasedBy,
+  onClose,
+}: {
+  loan: Loan;
+  releasedBy: string;
+  onClose: () => void;
+}) {
+  const [mode, setMode] = useState<PrintFormMode>(loan.status === "Returned" ? "complete" : "release");
+  const returned = loan.status === "Returned";
+  const transactionNo = transactionNumberOf(loan);
+  const typeLabel = kindOf(loan) === "Room Key" ? "Room Key" : "Equipment";
+  const showRelease = mode === "release" || mode === "complete";
+  const showReturn = mode === "return" || mode === "complete";
+
+  return (
+    <div className="backdrop print-form-backdrop" onMouseDown={onClose}>
+      <section className="print-form-dialog" role="dialog" aria-modal="true" aria-label="Printable COAC borrowing form" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="print-form-toolbar no-print">
+          <div>
+            <strong>COAC printable record</strong>
+            <small>{transactionNo}</small>
+          </div>
+          <div className="print-mode-tabs">
+            <button type="button" className={mode === "release" ? "active" : ""} onClick={() => setMode("release")}>Release form</button>
+            <button type="button" className={mode === "return" ? "active" : ""} onClick={() => setMode("return")}>Return form</button>
+            <button type="button" className={mode === "complete" ? "active" : ""} onClick={() => setMode("complete")}>Complete record</button>
+          </div>
+          <div className="print-toolbar-actions"><button type="button" onClick={onClose}>Close</button><button type="button" className="print-now-button" onClick={() => window.print()}>Print A4</button></div>
+        </div>
+
+        <article className="coac-print-sheet">
+          <header className="coac-print-header">
+            <div className="coac-print-monogram"><b>COAC</b><span>TOOL AID</span></div>
+            <div className="coac-print-heading">
+              <span>TECHNOLOGICAL UNIVERSITY OF THE PHILIPPINES - VISAYAS</span>
+              <strong>COLLEGE OF AUTOMATION AND CONTROL</strong>
+              <h1>{typeLabel} Borrowing &amp; Release Form</h1>
+            </div>
+            <div className="coac-print-programs" aria-label="COAC programs">
+              <img src="/course-logos/bsice-logo.png" alt="BSICE" />
+              <img src="/course-logos/bsmxe-logo.png" alt="BSMxE" />
+              <img src="/course-logos/betmxt-logo.png" alt="BETMxT" />
+            </div>
+          </header>
+
+          <section className="coac-print-meta">
+            <div><span>TRANSACTION NO.</span><strong>{transactionNo}</strong></div>
+            <div><span>STATUS</span><strong>{loan.status}</strong></div>
+            <div><span>DATE / TIME BORROWED</span><strong>{loan.borrowed}</strong></div>
+          </section>
+
+          <section className="coac-print-block">
+            <h2>Borrower Information</h2>
+            <div className="coac-print-grid four">
+              <label><span>Full Name</span><strong>{loan.student}</strong></label>
+              <label><span>TUPV / Employee ID</span><strong>{loan.studentId}</strong></label>
+              <label><span>Program / Section</span><strong>{loan.program || "—"}</strong></label>
+              <label><span>Borrower Type</span><strong>{borrowerTypeOf(loan)}</strong></label>
+            </div>
+          </section>
+
+          <section className="coac-print-block">
+            <h2>{kindOf(loan) === "Room Key" ? "Room / Key Released" : "Item / Equipment Released"}</h2>
+            <div className="coac-print-grid four">
+              <label><span>{kindOf(loan) === "Room Key" ? "Room / Key" : "Item"}</span><strong>{loan.item}</strong></label>
+              <label><span>Asset / Key ID</span><strong>{assetLabelOf(loan)}</strong></label>
+              <label><span>Due Date</span><strong>{kindOf(loan) === "Room Key" ? "Upon completion of room use" : loan.due || "—"}</strong></label>
+              <label><span>Condition Before Release</span><strong>Good / Serviceable</strong></label>
+            </div>
+            {loan.purpose && <div className="coac-print-purpose"><span>Purpose</span><strong>{loan.purpose}</strong></div>}
+          </section>
+
+          {showRelease && (
+            <section className="coac-print-block coac-release-section">
+              <h2>Release Confirmation</h2>
+              <p className="coac-print-acknowledgement">I acknowledge receipt of the equipment or room key listed above in the stated condition and accept responsibility for its proper use, safekeeping, and return.</p>
+              <div className="coac-signature-grid">
+                <div><span className="signature-line" /><strong>{loan.student}</strong><small>Borrower's Signature</small><em>Date / Time: __________________</em></div>
+                <div><span className="signature-line" /><strong>{releasedBy}</strong><small>Releasing Officer</small><em>Released: {loan.borrowed}</em></div>
+              </div>
+            </section>
+          )}
+
+          {showReturn && (
+            <section className="coac-print-block coac-return-section">
+              <h2>Return &amp; Post-Return Evaluation</h2>
+              <div className="coac-return-meta">
+                <label><span>Date / Time Returned</span><strong>{returned ? loan.returnedAt ?? "Recorded return" : "____________________________"}</strong></label>
+                <label><span>Condition Upon Return</span><strong>{returned ? loan.returnCondition ?? "Returned" : "____________________________"}</strong></label>
+              </div>
+              <div className="coac-condition-checks" aria-label="Return condition options">
+                {['Good', 'Minor damage', 'Damaged', 'Missing part', 'Needs maintenance'].map((condition) => (
+                  <span key={condition}><b>{returned && loan.returnCondition?.toLowerCase() === condition.toLowerCase() ? "✓" : ""}</b>{condition}</span>
+                ))}
+              </div>
+              <div className="coac-print-remarks"><span>Remarks / Evaluation</span><p>{returned ? loan.returnRemarks || "No additional remarks recorded." : "________________________________________________________________________________\n________________________________________________________________________________"}</p></div>
+              <div className="coac-signature-grid return">
+                <div><span className="signature-line" /><strong>{loan.student}</strong><small>Borrower's Signature</small></div>
+                <div><span className="signature-line" /><strong>{releasedBy}</strong><small>Received / Evaluated By</small></div>
+              </div>
+            </section>
+          )}
+
+          <footer className="coac-print-footer">
+            <span>COAC TOOL AID · OFFICIAL BORROWING RECORD</span>
+            <strong>{transactionNo}</strong>
+            <small>Generated from the COAC Laboratory Management System</small>
+          </footer>
+        </article>
+      </section>
     </div>
   );
 }
@@ -4127,7 +4860,7 @@ function RoomSummary({
 function Status({ value }: { value: string }) {
   const tone = ["Available", "On time", "Returned"].includes(value)
     ? "good"
-    : ["Borrowed", "Partially borrowed", "Due today", "Key out"].includes(value)
+    : ["Borrowed", "Partially borrowed", "Due today", "Key out", "Pending"].includes(value)
       ? "warn"
       : "bad";
   return (
@@ -4387,6 +5120,9 @@ function CloudLogin({
 }) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
+  const [accountType, setAccountType] = useState<"student" | "professor">("student");
+  const [studentId, setStudentId] = useState("");
+  const [program, setProgram] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -4402,10 +5138,20 @@ function CloudLogin({
           userId: ID.unique(),
           email: email.trim(),
           password,
-          name: name.trim() || "COAC Tool Aid",
+          name: name.trim() || "COAC Tool Aid User",
         });
       }
       await account.createEmailPasswordSession({ email: email.trim(), password });
+      if (mode === "register") {
+        await account.updatePrefs({
+          prefs: {
+            role: accountType,
+            studentId: studentId.trim().toUpperCase(),
+            program: program.trim(),
+            borrowerType: accountType === "professor" ? "Professor" : "Student",
+          },
+        });
+      }
       onSignedIn(await account.get());
     } catch (submitError) {
       setError(appwriteErrorMessage(submitError));
@@ -4422,7 +5168,7 @@ function CloudLogin({
           <div>
             <span>COAC LABORATORY MANAGEMENT</span>
             <h1>COAC Tool Aid</h1>
-            <p>Online inventory, room keys, borrowers, and transaction records.</p>
+            <p>Secure inventory, room-key access, borrowing requests, and transaction records.</p>
           </div>
         </div>
 
@@ -4451,16 +5197,43 @@ function CloudLogin({
 
         <form className="auth-form" onSubmit={submit}>
           {mode === "register" && (
-            <label>
-              <span>Administrator name</span>
-              <input
-                autoComplete="name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="COAC Tool Aid administrator"
-                required
-              />
-            </label>
+            <>
+              <label>
+                <span>Full name</span>
+                <input
+                  autoComplete="name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Juan Dela Cruz"
+                  required
+                />
+              </label>
+              <label>
+                <span>Account type</span>
+                <select value={accountType} onChange={(event) => setAccountType(event.target.value as "student" | "professor")}>
+                  <option value="student">Student</option>
+                  <option value="professor">Professor</option>
+                </select>
+              </label>
+              <label>
+                <span>{accountType === "professor" ? "Employee / faculty ID" : "TUPV ID"}</span>
+                <input
+                  value={studentId}
+                  onChange={(event) => setStudentId(event.target.value)}
+                  placeholder={accountType === "professor" ? "Faculty ID" : "TUPV-00-0000"}
+                  required
+                />
+              </label>
+              <label>
+                <span>{accountType === "professor" ? "Department / designation" : "Program, year & section"}</span>
+                <input
+                  value={program}
+                  onChange={(event) => setProgram(event.target.value)}
+                  placeholder={accountType === "professor" ? "COAC Faculty" : "BETMxT 3A"}
+                  required
+                />
+              </label>
+            </>
           )}
           <label>
             <span>Email address</span>
@@ -4487,7 +5260,7 @@ function CloudLogin({
           </label>
           {error && <p className="auth-error" role="alert">{error}</p>}
           <button className="primary auth-submit" disabled={busy}>
-            {busy ? "Please wait..." : mode === "login" ? "Sign in to dashboard" : "Create account & continue"}
+            {busy ? "Please wait..." : mode === "login" ? "Sign in to dashboard" : "Create user account & continue"}
           </button>
         </form>
 
