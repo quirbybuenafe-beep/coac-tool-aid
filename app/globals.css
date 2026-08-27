@@ -4766,3 +4766,1027 @@ th{
 @media(max-width:480px){
   .user-rich-stats{grid-template-columns:1fr!important}.user-hero-account-line{display:none}.user-rich-hero .hero-actions{align-items:stretch;flex-direction:column}.user-rich-hero .hero-actions button{width:100%}.user-home-dashboard{width:calc(100% - 14px)}
 }
+
+/* =========================================================
+   v29 GENERAL BORROWER PORTAL
+   Shared borrower access, compact layout, admin-matched palette.
+   ========================================================= */
+.borrower-portal{background:linear-gradient(180deg,#eef4f8 0,#f7fafc 46%,#edf3f7 100%)}
+.borrower-topbar{height:80px!important;grid-template-columns:minmax(250px,1fr) auto minmax(330px,1fr)!important;padding:0 24px!important}
+.borrower-topbar .user-rich-brand img{width:48px;height:48px}
+.borrower-topbar .user-rich-brand strong{font-size:15px}
+.borrower-topbar .user-rich-brand small{max-width:270px;font-size:8px;color:#b8c9d8}
+.borrower-nav{display:grid!important;grid-template-columns:repeat(4,minmax(112px,1fr))!important;gap:4px!important;min-width:500px!important;height:50px!important;padding:4px!important;border:1px solid #ffffff18!important;border-radius:15px!important;background:#ffffff0b!important}
+.borrower-nav .top-nav-slider{display:none!important}
+.borrower-nav button{position:relative!important;z-index:1!important;min-height:40px!important;padding:0 14px!important;border:1px solid transparent!important;border-radius:11px!important;background:transparent!important;color:#bfcddd!important;font-size:10px!important;font-weight:850!important;box-shadow:none!important;transition:.16s ease!important}
+.borrower-nav button:hover{background:#ffffff0d!important;color:#fff!important;transform:none!important}
+.borrower-nav button.active{border-color:#4b82b8!important;background:linear-gradient(180deg,#315a82,#284d72)!important;color:#fff!important;box-shadow:inset 0 1px 0 #ffffff2b,0 5px 14px #0002!important}
+.borrower-actions{display:flex!important;justify-content:flex-end!important;gap:8px!important}
+.borrower-access-badge{display:flex;align-items:center;gap:8px;min-height:44px;padding:5px 10px;border:1px solid #ffffff17;border-radius:12px;background:#ffffff0b;color:#fff}
+.borrower-access-badge .avatar{display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:#147ee4;color:#fff;font-size:10px;font-weight:900}
+.borrower-access-badge>span:last-child{display:grid;gap:1px;min-width:0}.borrower-access-badge strong{font-size:9px}.borrower-access-badge small{color:#b6c7d8;font-size:7px}
+.borrower-admin-link{min-height:40px;padding:0 12px;border:1px solid #365a7d;border-radius:10px;background:#173b5d;color:#dce9f5;font-size:8px;font-weight:850;cursor:pointer}.borrower-admin-link:hover{background:#214d75;color:#fff}
+.borrower-mobile-nav{background:#0b2747!important;border-color:#23415f!important}
+
+.borrower-workspace-head{margin-bottom:16px!important;padding-bottom:14px!important}.borrower-workspace-head h1{font-size:34px!important}.borrower-workspace-head p{font-size:10px!important;line-height:1.55!important}
+.borrower-general-card{display:grid;min-width:260px;gap:3px;padding:11px 14px;border:1px solid #cbd9e5;border-radius:12px;background:#fff;box-shadow:0 5px 15px #173b5b0b;text-align:right}
+.borrower-general-card>span{color:#168bff;font-size:7px;font-weight:950;letter-spacing:.12em}.borrower-general-card>strong{color:#163650;font-size:12px}.borrower-general-card>small{color:#72889a;font-size:8px}
+
+.borrower-hero{min-height:360px!important;padding:38px clamp(28px,4vw,60px)!important}.borrower-hero .hero-shell{grid-template-columns:minmax(0,1.08fr) minmax(440px,.92fr)!important;gap:24px!important}.borrower-hero .hero-copy{min-height:280px!important}.borrower-hero .hero-copy h1{font-size:clamp(42px,4vw,58px)!important}.borrower-hero .hero-copy p{max-width:680px!important;font-size:13px!important}.borrower-hero .hero-course-showcase{min-height:275px!important}.borrower-hero .hero-course-grid{min-height:160px!important}.borrower-hero-line{margin-top:16px!important;padding-top:14px!important}.borrower-hero-line>span{padding:7px 10px!important;border-radius:9px!important}.borrower-hero-line b{font-size:10px!important}.borrower-hero-line small{font-size:7px!important}
+
+.borrower-home-dashboard{margin-top:18px!important}.borrower-dashboard-zone{border-radius:20px!important}.borrower-dashboard-zone>.dashboard-zone-head{padding:16px 18px!important}.borrower-dashboard-zone>.dashboard-zone-head h2{font-size:20px!important}.borrower-dashboard-zone>.dashboard-zone-head p{font-size:9px!important}.borrower-stats{padding:14px 16px 2px!important;gap:10px!important}.borrower-stats .stat{min-height:118px!important;padding:15px!important;border-radius:15px!important}.borrower-stats .stat>strong{font-size:30px!important}.borrower-stats .stat-foot em{font-size:8px!important}
+.borrower-home-panels{display:grid;grid-template-columns:1.45fr .75fr;gap:12px;padding:14px 16px 4px}.borrower-home-panels>.panel{min-height:0;border-radius:15px!important}.borrower-process-panel .panel-head,.borrower-ready-panel .panel-head{padding:14px 15px 8px!important}.borrower-process-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding:8px 12px 14px}.borrower-process-grid>button{display:grid;grid-template-columns:28px minmax(0,1fr);align-items:start;gap:8px;min-height:76px;padding:10px;border:1px solid #dce6ed;border-radius:11px;background:linear-gradient(145deg,#fff,#f7fafc);text-align:left;cursor:pointer}.borrower-process-grid>button:hover{border-color:#9ec9ef;background:#f5faff}.borrower-process-grid>button>b{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:#eaf4fd;color:#0877e8;font-size:9px}.borrower-process-grid>button>span{display:grid;gap:3px}.borrower-process-grid strong{color:#1d3b52;font-size:9px}.borrower-process-grid small{color:#708699;font-size:7px;line-height:1.35}
+.borrower-ready-list{display:grid;gap:7px;padding:8px 12px 14px}.borrower-ready-list>button{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:8px;min-height:58px;padding:8px 10px;border:1px solid #dbe6ee;border-radius:11px;background:#fff;text-align:left;cursor:pointer}.borrower-ready-list .user-ready-icon{width:38px;height:38px;border-radius:10px;font-size:16px}.borrower-ready-list>button>span:nth-child(2){display:grid;gap:1px}.borrower-ready-list strong{color:#1d3b52;font-size:16px}.borrower-ready-list small{color:#71879a;font-size:7px}.borrower-ready-list>b{color:#8ea2b3}
+
+/* Compact home room status: two rows instead of tall 5-row tiles. */
+.borrower-room-display{margin:12px 16px 16px!important;border-radius:15px!important}.borrower-room-display .panel-head{padding:12px 14px 8px!important}.borrower-room-display .panel-head strong{font-size:11px!important}.borrower-room-display .panel-head small{font-size:8px!important}
+.borrower-room-display .room-display-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:7px!important;padding:10px 12px 12px!important}
+.borrower-room-display .room-display-tile{min-height:66px!important;padding:10px 11px!important;border-radius:11px!important;gap:3px!important;box-shadow:0 5px 14px #143d5a0b!important}
+.borrower-room-display .room-display-tile strong{font-size:10px!important;line-height:1.2!important}.borrower-room-display .room-display-tile span{font-size:7px!important}.borrower-room-display .room-display-tile i{top:10px!important;right:10px!important;width:7px!important;height:7px!important;box-shadow:0 0 0 3px currentColor!important}
+
+/* Compact inventory, matching the administrator's blue/white treatment. */
+.borrower-catalog-panel,.borrower-rooms-panel,.borrower-track-panel{padding:16px!important;border-radius:18px!important}.borrower-catalog-panel .user-panel-head,.borrower-rooms-panel .user-panel-head,.borrower-track-panel .user-panel-head{margin-bottom:12px!important;padding-bottom:10px!important}.borrower-catalog-panel .user-panel-head strong,.borrower-rooms-panel .user-panel-head strong,.borrower-track-panel .user-panel-head strong{font-size:12px!important}
+.borrower-category-tabs{display:flex!important;gap:6px!important;padding-bottom:9px!important}.borrower-category-tabs button{min-width:max-content!important;min-height:42px!important;padding:6px 9px!important;border-radius:9px!important;box-shadow:none!important}.borrower-category-tabs button>span{width:28px!important;height:28px!important;border-radius:8px!important}.borrower-category-tabs button.active{border-color:#64a9e4!important;background:#edf6ff!important;color:#076fcf!important}
+.borrower-tool-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:10px!important}.borrower-tool-grid article{min-height:0!important;padding:14px!important;border:1px solid #cfdeea!important;border-radius:13px!important;background:linear-gradient(155deg,#fff,#f5f9fc 78%)!important;box-shadow:0 6px 18px #173c5908!important}.borrower-tool-grid article:before{height:3px!important;background:linear-gradient(90deg,#0b78df,#4aa8f7)!important}.borrower-tool-grid article:hover{transform:translateY(-2px)!important;box-shadow:0 10px 24px #173c5911!important}.borrower-tool-grid article header{padding-bottom:8px!important}.borrower-tool-grid h3{margin:11px 0 2px!important;color:#163650!important;font-size:14px!important}.borrower-tool-grid p{font-size:7px!important}.borrower-tool-grid .user-unit-summary{margin:11px 0 8px!important;padding:8px 9px!important;border-radius:9px!important;background:#f4f8fb!important}.borrower-tool-grid .user-unit-summary strong{color:#0877e8!important;font-size:22px!important}.borrower-tool-grid .user-unit-summary span{font-size:7px!important}.borrower-tool-grid .user-unit-buttons{gap:5px!important}.borrower-tool-grid .user-unit-buttons button{min-height:40px!important;padding:5px!important;border-color:#cbdce8!important;border-radius:8px!important;background:#f3f8fc!important;color:#23516f!important;font-size:7px!important}.borrower-tool-grid .user-unit-buttons button:hover:not(:disabled){border-color:#78b8ec!important;background:#eaf5ff!important;color:#076fcf!important}.borrower-tool-grid .user-unit-buttons button b{font-size:10px!important}.borrower-tool-grid .user-unit-buttons button:disabled{border-color:#e1e7eb!important;background:#f5f7f8!important;color:#9aa8ae!important}
+
+.borrower-room-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:10px!important}.borrower-room-grid article{min-height:190px!important;padding:15px!important;border-width:1px!important;border-radius:13px!important;box-shadow:0 6px 18px #173c5908!important}.borrower-room-grid h3{font-size:16px!important}.borrower-room-grid p{font-size:8px!important}.borrower-room-grid>article>small{font-size:7px!important}.borrower-room-grid>article>button{min-height:36px!important;border-radius:8px!important;font-size:8px!important}
+
+.borrower-track-search{display:grid;grid-template-columns:1fr minmax(340px,.7fr);align-items:center;gap:18px;margin-bottom:12px;padding:12px 14px;border:1px solid #d4e1ea;border-radius:12px;background:linear-gradient(145deg,#f8fbfd,#fff)}.borrower-track-search>div{display:grid;gap:3px}.borrower-track-search>div>span{color:#168bff;font-size:7px;font-weight:950;letter-spacing:.12em}.borrower-track-search>div>strong{color:#163650;font-size:12px}.borrower-track-search>div>small{color:#758b9c;font-size:8px}.borrower-track-search>label{display:flex;align-items:center;gap:7px;min-height:40px;padding:0 7px 0 11px;border:1px solid #c8d9e6;border-radius:9px;background:#fff}.borrower-track-search input{min-width:0;flex:1;border:0;outline:0;background:transparent;color:#17364a;font:inherit;font-size:9px}.borrower-track-search button{min-height:28px;padding:0 9px;border:1px solid #d5e2eb;border-radius:7px;background:#f4f8fb;color:#5e778a;font-size:7px;font-weight:850;cursor:pointer}
+.borrower-track-empty{display:grid;place-items:center;align-content:center;min-height:260px;padding:30px;border:1px dashed #cfdee8;border-radius:12px;background:#f9fbfc;text-align:center}.borrower-track-empty>span{display:grid;place-items:center;width:46px;height:46px;margin-bottom:9px;border-radius:12px;background:#eaf4fd;color:#0877e8;font-size:20px}.borrower-track-empty strong{color:#304d63;font-size:11px}.borrower-track-empty small{max-width:520px;margin-top:4px;color:#7a8f9f;font-size:8px;line-height:1.5}
+.borrower-track-identity{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:10px}.borrower-track-identity>span{display:grid;gap:3px;padding:9px 10px;border:1px solid #d8e4ec;border-radius:9px;background:#f9fbfd}.borrower-track-identity small{color:#7c90a0;font-size:6px;font-weight:850;text-transform:uppercase;letter-spacing:.07em}.borrower-track-identity strong{color:#223f55;font-size:9px}.borrower-activity-table-wrap{border-radius:12px!important}
+
+.borrower-request-modal{max-width:760px!important}.borrower-request-modal form{display:grid;gap:12px}.borrower-request-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}.borrower-request-extra{display:grid;grid-template-columns:.6fr 1.4fr;gap:10px}.borrower-request-fields label,.borrower-request-extra label{display:grid;gap:6px}.borrower-request-note{margin:0!important}.borrower-request-modal footer{margin-top:2px!important}
+
+/* Login is now an admin gateway plus account-free borrower entrance. */
+.borrower-gateway-card{width:min(860px,calc(100% - 28px))!important;max-width:none!important;padding:28px!important}.borrower-gateway-brand{padding-bottom:18px!important}.borrower-gateway-brand img{width:68px!important;height:68px!important}.borrower-gateway-brand h1{font-size:28px!important}.borrower-gateway-brand p{max-width:620px!important}
+.borrower-gateway-choice{display:grid;grid-template-columns:minmax(0,1fr) minmax(250px,.55fr);align-items:center;gap:18px;padding:18px;border:1px solid #a9d0ee;border-radius:15px;background:linear-gradient(135deg,#eef7ff,#fff 60%);box-shadow:0 9px 24px #0a6eb20e}.borrower-gateway-copy{display:grid;gap:5px}.borrower-gateway-copy>span{color:#0877e8;font-size:7px;font-weight:950;letter-spacing:.14em}.borrower-gateway-copy h2{margin:0;color:#143951;font-size:21px;letter-spacing:-.025em}.borrower-gateway-copy p{margin:0;color:#658093;font-size:9px;line-height:1.55}.borrower-gateway-points{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.borrower-gateway-points span{padding:5px 7px;border:1px solid #cce1f1;border-radius:7px;background:#fff;color:#3c657e;font-size:7px;font-weight:800}
+.borrower-gateway-open{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:10px;min-height:68px;padding:11px 13px;border:0;border-radius:12px;background:linear-gradient(145deg,#0c7be1,#075eae);color:#fff;box-shadow:0 12px 26px #0877e82e;text-align:left;cursor:pointer}.borrower-gateway-open>span{display:grid;place-items:center;width:42px;height:42px;border:1px solid #ffffff3c;border-radius:10px;background:#ffffff14;font-size:11px;font-weight:900}.borrower-gateway-open strong{font-size:11px}.borrower-gateway-open b{font-size:18px}.borrower-gateway-open:disabled{opacity:.7;cursor:wait}
+.borrower-gateway-divider{position:relative;display:grid;place-items:center;margin:18px 0}.borrower-gateway-divider:before{position:absolute;right:0;left:0;height:1px;background:#dce5eb;content:""}.borrower-gateway-divider span{z-index:1;padding:0 10px;background:#fff;color:#82939f;font-size:7px;font-weight:850;text-transform:uppercase;letter-spacing:.1em}.borrower-admin-form{display:grid!important;grid-template-columns:1fr 1fr auto;align-items:end;gap:10px!important}.borrower-admin-heading{grid-column:1/-1;display:grid;gap:3px;margin-bottom:2px}.borrower-admin-heading>span{color:#647c8d;font-size:7px;font-weight:950;letter-spacing:.12em}.borrower-admin-heading>strong{color:#17364a;font-size:13px}.borrower-admin-heading>small{color:#7a8e9b;font-size:8px}.borrower-admin-form .auth-submit{min-width:190px;min-height:42px;margin:0!important}.borrower-admin-form .auth-error{grid-column:1/-1}
+
+@media(max-width:1240px){
+  .borrower-topbar{grid-template-columns:minmax(235px,1fr) auto minmax(180px,1fr)!important}.borrower-nav{min-width:430px!important;grid-template-columns:repeat(4,minmax(96px,1fr))!important}.borrower-access-badge{display:none}.borrower-tool-grid,.borrower-room-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}.borrower-room-display .room-display-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}.borrower-process-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:1050px){
+  .borrower-topbar{grid-template-columns:1fr auto!important}.borrower-nav{display:none!important}.borrower-actions .user-rich-search{display:none}.borrower-home-panels{grid-template-columns:1fr}.borrower-room-display .room-display-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}.borrower-tool-grid,.borrower-room-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.borrower-gateway-choice{grid-template-columns:1fr}.borrower-admin-form{grid-template-columns:1fr 1fr}.borrower-admin-form .auth-submit{grid-column:1/-1}.borrower-track-search{grid-template-columns:1fr}.borrower-track-identity{grid-template-columns:1fr 1fr}
+}
+@media(max-width:700px){
+  .borrower-topbar{height:72px!important;padding:7px 10px!important}.borrower-topbar .user-rich-brand small{display:none}.borrower-admin-link{padding:0 9px}.borrower-hero{padding:30px 16px 26px!important}.borrower-hero .hero-shell{grid-template-columns:1fr!important}.borrower-hero .hero-course-showcase{display:none}.borrower-hero-line{display:none!important}.borrower-home-dashboard{width:calc(100% - 16px)!important;margin-top:12px!important}.borrower-dashboard-zone>.dashboard-zone-head{align-items:flex-start;flex-direction:column}.borrower-stats{grid-template-columns:1fr 1fr!important}.borrower-process-grid{grid-template-columns:1fr}.borrower-room-display .room-display-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.borrower-tool-grid,.borrower-room-grid{grid-template-columns:1fr!important}.borrower-request-fields,.borrower-request-extra{grid-template-columns:1fr}.borrower-track-identity{grid-template-columns:1fr}.borrower-gateway-card{padding:18px!important}.borrower-admin-form{grid-template-columns:1fr}.borrower-admin-form .auth-submit{grid-column:auto}.borrower-gateway-brand{align-items:flex-start!important}
+}
+@media(max-width:460px){.borrower-stats{grid-template-columns:1fr!important}.borrower-room-display .room-display-grid{grid-template-columns:1fr!important}}
+
+/* =========================================================
+   v30 GENERAL BORROWER PAGE · NO STUDENT ACCOUNT UI
+   Compact borrower-facing Tool Aid page. Admin remains protected.
+   ========================================================= */
+
+/* Keep the borrower navbar independent from admin borrower-row/action styles. */
+.borrower-topbar{
+  height:72px!important;
+  min-height:72px!important;
+  grid-template-columns:minmax(230px,1fr) auto minmax(220px,1fr)!important;
+  gap:16px!important;
+  padding:0 22px!important;
+  border-bottom:1px solid #254a6b!important;
+  background:#12385f!important;
+  box-shadow:0 8px 22px #0e31551a!important;
+}
+.borrower-topbar .user-rich-brand{min-width:0!important;gap:10px!important}
+.borrower-topbar .user-rich-brand img{width:42px!important;height:42px!important;object-fit:contain}
+.borrower-topbar .user-rich-brand strong{font-size:14px!important;color:#fff!important}
+.borrower-topbar .user-rich-brand small{max-width:245px!important;color:#b8cbe0!important;font-size:7px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.borrower-nav{
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(105px,1fr))!important;
+  width:auto!important;
+  min-width:470px!important;
+  gap:3px!important;
+  padding:4px!important;
+  border:1px solid #ffffff1d!important;
+  border-radius:10px!important;
+  background:#ffffff0b!important;
+  overflow:visible!important;
+}
+.borrower-nav .top-nav-slider{display:none!important}
+.borrower-nav button{
+  position:relative!important;
+  z-index:1!important;
+  min-width:0!important;
+  min-height:34px!important;
+  padding:0 11px!important;
+  border:1px solid transparent!important;
+  border-radius:7px!important;
+  background:transparent!important;
+  color:#c8d7e6!important;
+  box-shadow:none!important;
+  font-size:8px!important;
+  font-weight:800!important;
+  white-space:nowrap!important;
+}
+.borrower-nav button.active{
+  border-color:#5baeff!important;
+  background:#ffffff18!important;
+  color:#fff!important;
+  box-shadow:inset 0 0 0 1px #ffffff14!important;
+}
+.borrower-topbar-actions{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:8px!important;
+  min-width:0!important;
+}
+.borrower-topbar-actions .user-rich-search{width:min(250px,22vw)!important;min-height:34px!important}
+.borrower-admin-link{
+  flex:0 0 auto!important;
+  min-height:34px!important;
+  padding:0 12px!important;
+  border:1px solid #ffffff2c!important;
+  border-radius:8px!important;
+  background:#ffffff0d!important;
+  color:#eaf4ff!important;
+  font-size:7px!important;
+  font-weight:850!important;
+  cursor:pointer!important;
+  white-space:nowrap!important;
+}
+.borrower-admin-link:hover{background:#ffffff18!important;border-color:#ffffff48!important}
+
+/* Home becomes a compact Tool Aid entry, not a personal/student hero. */
+.borrower-tool-aid-home{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+  min-height:132px;
+  padding:22px 26px;
+  border:1px solid #c8dae8;
+  border-radius:15px;
+  background:linear-gradient(135deg,#ffffff,#f1f7fb);
+  box-shadow:0 8px 26px #163d5b0b;
+}
+.borrower-tool-aid-title{display:flex;align-items:center;gap:14px;min-width:0}
+.borrower-tool-aid-title>img{width:58px;height:58px;object-fit:contain}
+.borrower-tool-aid-title>div{display:grid;gap:2px}
+.borrower-tool-aid-title span{color:#1685ee;font-size:7px;font-weight:950;letter-spacing:.12em}
+.borrower-tool-aid-title h1{margin:0;color:#153754;font-size:34px;line-height:1;letter-spacing:-.045em}
+.borrower-tool-aid-title p{margin:4px 0 0;color:#6d8395;font-size:9px}
+.borrower-tool-aid-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-left:auto}
+.borrower-tool-aid-actions button{min-height:36px!important;padding:0 13px!important;border-radius:8px!important;font-size:8px!important;white-space:nowrap}
+.borrower-tool-aid-home .hero-clock{position:static!important;display:grid!important;justify-items:end!important;min-width:118px!important;margin-left:5px!important;color:#6f8597!important}
+.borrower-tool-aid-home .hero-clock strong{color:#193c59!important;font-size:13px!important}
+
+.borrower-home-dashboard{width:100%!important;margin-top:10px!important}
+.borrower-dashboard-zone{padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.borrower-dashboard-zone>.dashboard-zone-head{padding:10px 2px 8px!important;border:0!important;background:transparent!important}
+.borrower-dashboard-zone>.dashboard-zone-head h2{font-size:16px!important}
+.borrower-dashboard-zone>.dashboard-zone-head p{font-size:8px!important}
+.borrower-stats{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important;margin:0 0 9px!important}
+.borrower-stats .stat{min-height:104px!important;padding:12px!important;border-radius:11px!important}
+.borrower-stats .stat>strong{font-size:28px!important}
+.borrower-stats .stat small,.borrower-stats .stat em{font-size:7px!important}
+
+/* Live room display: clean, short rows instead of giant cards. */
+.borrower-room-display{margin-top:8px!important;border-radius:13px!important}
+.borrower-room-display .panel-head{min-height:48px!important;padding:10px 14px!important}
+.borrower-room-display .room-display-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:7px!important;padding:10px 12px 12px!important}
+.borrower-room-display .room-display-tile{position:relative!important;display:grid!important;align-content:center!important;justify-items:start!important;min-height:72px!important;padding:10px 12px!important;border-radius:10px!important;text-align:left!important}
+.borrower-room-display .room-display-tile i{position:absolute!important;top:9px!important;right:9px!important;width:9px!important;height:9px!important}
+.borrower-room-display .room-display-tile strong{font-size:9px!important}
+.borrower-room-display .room-display-tile span{margin-top:3px!important;font-size:7px!important}
+
+/* Workspace headings stay useful but compact. */
+.borrower-workspace-head{min-height:0!important;margin:0 0 10px!important;padding:0 2px 10px!important;border-bottom:1px solid #d8e4ed!important}
+.borrower-workspace-head h1{margin:3px 0!important;font-size:25px!important}
+.borrower-workspace-head p{max-width:760px!important;font-size:8px!important;line-height:1.45!important}
+.borrower-workspace-head .eyebrow{font-size:7px!important}
+
+/* Inventory styling follows the cleaner admin cards: blue line, white body, compact units. */
+.borrower-catalog-panel,.borrower-rooms-panel,.borrower-active-panel{margin-top:0!important;padding:12px!important;border-radius:13px!important}
+.borrower-catalog-panel .user-panel-head,.borrower-rooms-panel .user-panel-head,.borrower-active-panel .user-panel-head{margin-bottom:9px!important}
+.borrower-category-tabs{gap:5px!important;padding-bottom:7px!important}
+.borrower-category-tabs button{min-height:34px!important;padding:0 9px!important;border-radius:8px!important;font-size:7px!important}
+.borrower-tool-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:9px!important}
+.borrower-tool-grid article{
+  min-height:0!important;
+  padding:12px!important;
+  border:1px solid #cadbe8!important;
+  border-top:3px solid #2693ef!important;
+  border-radius:11px!important;
+  background:#fff!important;
+  box-shadow:0 5px 16px #183f5d08!important;
+}
+.borrower-tool-grid article:before{display:none!important}
+.borrower-tool-grid article header{min-height:24px!important;padding:0 0 7px!important;border-bottom:1px solid #e1e9ef!important}
+.borrower-tool-grid article header .mono{font-size:7px!important}
+.borrower-tool-grid h3{margin:9px 0 2px!important;color:#153855!important;font-size:13px!important}
+.borrower-tool-grid p{margin:0!important;color:#71889a!important;font-size:7px!important}
+.borrower-tool-grid .user-unit-summary{min-height:48px!important;margin:9px 0 7px!important;padding:7px 9px!important;border:1px solid #d9e5ee!important;border-radius:8px!important;background:#f7fafc!important}
+.borrower-tool-grid .user-unit-summary strong{font-size:20px!important}
+.borrower-tool-grid .user-unit-buttons{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important}
+.borrower-tool-grid .user-unit-buttons button{min-height:35px!important;padding:4px!important;border-radius:7px!important;background:#f1f8f4!important;color:#145b36!important}
+.borrower-tool-grid .user-unit-buttons button:disabled{background:#f4f6f7!important;color:#9aa7af!important}
+
+.borrower-room-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:9px!important}
+.borrower-room-grid article{min-height:160px!important;padding:13px!important;border-radius:11px!important;box-shadow:0 5px 16px #183f5d08!important}
+.borrower-room-grid h3{font-size:14px!important}
+.borrower-room-grid>article>button{min-height:34px!important;border-radius:7px!important;font-size:7px!important}
+
+/* Active is a global status board, never a personal "My Activity" page. */
+.borrower-active-note{grid-template-columns:auto 1fr!important;gap:8px 12px!important;margin:0 0 9px!important;padding:10px 12px!important;border-radius:9px!important}
+.borrower-active-note>span{grid-row:1/3!important;font-size:6px!important}
+.borrower-active-note>strong{font-size:10px!important}
+.borrower-active-note>small{font-size:7px!important}
+.borrower-activity-table-wrap{border-radius:9px!important}
+.borrower-activity-table-wrap table th{font-size:7px!important}
+.borrower-activity-table-wrap table td{font-size:8px!important}
+
+/* Admin login is separate and protected. Borrower page has no personal login/account card. */
+.admin-only-login-card{width:min(520px,calc(100% - 28px))!important;max-width:none!important;padding:24px!important}
+.admin-login-back{margin-bottom:14px;border:0;background:transparent;color:#4f718a;font-size:8px;font-weight:850;cursor:pointer}
+.admin-only-login-brand{padding-bottom:18px!important}
+.admin-only-login-brand img{width:60px!important;height:60px!important}
+.admin-only-login-brand h1{font-size:26px!important}
+.admin-only-login-brand p{max-width:390px!important}
+.admin-only-login-form{display:grid!important;grid-template-columns:1fr!important;gap:11px!important}
+.admin-only-login-form .auth-submit{width:100%!important;min-height:42px!important;margin:2px 0 0!important}
+
+@media(max-width:1240px){
+  .borrower-topbar{grid-template-columns:minmax(220px,1fr) auto 170px!important}
+  .borrower-nav{min-width:420px!important;grid-template-columns:repeat(4,minmax(92px,1fr))!important}
+  .borrower-topbar-actions .user-rich-search{display:none!important}
+  .borrower-room-display .room-display-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+  .borrower-tool-grid,.borrower-room-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+}
+@media(max-width:980px){
+  .borrower-topbar{grid-template-columns:1fr auto!important}
+  .borrower-nav{display:none!important}
+  .borrower-tool-aid-home{align-items:flex-start;flex-wrap:wrap}
+  .borrower-tool-aid-actions{order:3;width:100%;justify-content:flex-start;margin-left:72px}
+  .borrower-room-display .room-display-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  .borrower-tool-grid,.borrower-room-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:700px){
+  .borrower-topbar{height:66px!important;min-height:66px!important;padding:0 10px!important}
+  .borrower-topbar .user-rich-brand img{width:38px!important;height:38px!important}
+  .borrower-admin-link{min-height:32px!important;padding:0 9px!important}
+  .borrower-tool-aid-home{min-height:0;padding:16px!important}
+  .borrower-tool-aid-title>img{width:48px;height:48px}
+  .borrower-tool-aid-title h1{font-size:28px}
+  .borrower-tool-aid-home .hero-clock{display:none!important}
+  .borrower-tool-aid-actions{margin-left:0!important}
+  .borrower-tool-aid-actions button{flex:1}
+  .borrower-stats{grid-template-columns:1fr 1fr!important}
+  .borrower-room-display .room-display-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .borrower-tool-grid,.borrower-room-grid{grid-template-columns:1fr!important}
+}
+@media(max-width:460px){
+  .borrower-tool-aid-actions{display:grid;grid-template-columns:1fr!important;width:100%}
+  .borrower-stats{grid-template-columns:1fr!important}
+  .borrower-room-display .room-display-grid{grid-template-columns:1fr!important}
+}
+
+
+/* v31: Admin-only account access + public Borrow entry. No borrower account creation. */
+.admin-entry-tabs{margin:0 0 2px!important}
+.admin-entry-tabs .borrow-entry-button{color:#126fc4!important}
+.admin-entry-tabs .borrow-entry-button:hover{background:#e7f3ff!important;color:#087cf0!important}
+.admin-entry-tabs button.active{pointer-events:none}
+.admin-only-login-brand p{max-width:360px!important}
+@media(max-width:560px){
+  .admin-entry-tabs{grid-template-columns:1fr 1fr!important}
+}
+
+/* =========================================================
+   v32 — borrowing batches + reliable scroll areas
+   ========================================================= */
+.transaction-group-summary{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:stretch;
+  background:#f9fcff;
+}
+.transaction-group-summary .transaction-group-toggle{min-width:0}
+.transaction-batch-print{
+  align-self:center;
+  min-height:34px;
+  margin:8px 12px 8px 4px;
+  padding:0 13px;
+  border:1px solid #b7d8f6;
+  border-radius:9px;
+  background:#fff;
+  color:#0877e8;
+  font-size:9px;
+  font-weight:850;
+  white-space:nowrap;
+  cursor:pointer;
+  box-shadow:0 2px 8px #0d5c9a0a;
+}
+.transaction-batch-print:hover{border-color:#168bff;background:#edf7ff}
+.transactions-page-panel{overflow:hidden}
+.transactions-page-panel>.table-scroll,
+.transactions-page-panel .history-table-wrap{
+  width:100%;
+  max-height:calc(100dvh - 285px);
+  min-height:240px;
+  overflow:auto!important;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable both-edges;
+}
+.transactions-page-panel>.table-scroll>table{min-width:1160px}
+.borrower-directory .borrower-list{
+  width:100%;
+  max-height:calc(100dvh - 310px);
+  min-height:260px;
+  overflow:auto!important;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+.borrower-directory .borrower-list-head{position:sticky;top:0;z-index:3}
+
+.coac-print-items-wrap{overflow:hidden;border-top:1px solid #d2dcd8}
+.coac-print-items{width:100%;border-collapse:collapse;table-layout:fixed}
+.coac-print-items th{
+  padding:6px 6px;
+  border-right:1px solid #d2dcd8;
+  background:#f5f9f7;
+  color:#60766d;
+  font-size:6px;
+  font-weight:900;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+.coac-print-items td{
+  padding:7px 6px;
+  border-top:1px solid #d2dcd8;
+  border-right:1px solid #d2dcd8;
+  color:#213c32;
+  font-size:7px;
+  line-height:1.35;
+  white-space:normal;
+  vertical-align:top;
+}
+.coac-print-items tr:first-child td{border-top:0}
+.coac-print-items th:last-child,.coac-print-items td:last-child{border-right:0}
+.coac-print-items th:nth-child(1),.coac-print-items td:nth-child(1){width:5%;text-align:center}
+.coac-print-items th:nth-child(2),.coac-print-items td:nth-child(2){width:10%}
+.coac-print-items th:nth-child(3),.coac-print-items td:nth-child(3){width:29%}
+.coac-print-items th:nth-child(4),.coac-print-items td:nth-child(4){width:18%}
+.coac-print-items th:nth-child(5),.coac-print-items td:nth-child(5){width:18%}
+.coac-print-items th:nth-child(6),.coac-print-items td:nth-child(6){width:20%}
+.coac-print-items td strong{display:block;font-size:7.5px}
+.coac-print-items td small{display:block;margin-top:2px;color:#6f837a;font-size:6px}
+.coac-return-items th:nth-child(1),.coac-return-items td:nth-child(1){width:5%}
+.coac-return-items th:nth-child(2),.coac-return-items td:nth-child(2){width:25%}
+.coac-return-items th:nth-child(3),.coac-return-items td:nth-child(3){width:20%}
+.coac-return-items th:nth-child(4),.coac-return-items td:nth-child(4){width:18%}
+.coac-return-items th:nth-child(5),.coac-return-items td:nth-child(5){width:32%}
+
+@media(max-width:760px){
+  .transaction-group-summary{grid-template-columns:1fr}
+  .transaction-batch-print{justify-self:stretch;margin:0 10px 9px}
+  .transactions-page-panel>.table-scroll,
+  .transactions-page-panel .history-table-wrap,
+  .borrower-directory .borrower-list{max-height:calc(100dvh - 230px)}
+}
+
+@media print{
+  .coac-print-items-wrap{overflow:visible!important}
+  .coac-print-items{break-inside:auto}
+  .coac-print-items tr{break-inside:avoid;break-after:auto}
+}
+
+/* =========================================================
+   v33 — borrower polish: liquid nav, compact home split,
+   public unit status colors, room sidebar
+   ========================================================= */
+
+/* Borrower navbar now uses the same sliding glass pill behavior as admin. */
+.borrower-topbar .top-nav.borrower-nav{
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  width:500px!important;
+  min-width:500px!important;
+  max-width:500px!important;
+  height:54px!important;
+  min-height:54px!important;
+  max-height:54px!important;
+  gap:0!important;
+  padding:5px!important;
+  overflow:hidden!important;
+  isolation:isolate!important;
+  border:1px solid #ffffff18!important;
+  border-radius:17px!important;
+  background:#ffffff0d!important;
+}
+.borrower-topbar .top-nav.borrower-nav .borrower-nav-slider{
+  display:block!important;
+  position:absolute!important;
+  z-index:0!important;
+  top:5px!important;
+  bottom:5px!important;
+  left:5px!important;
+  width:calc((100% - 10px) / 4)!important;
+  height:44px!important;
+  border:1px solid #5aa9f8aa!important;
+  border-radius:13px 16px 13px 16px!important;
+  background:
+    radial-gradient(circle at 28% 25%,#ffffff33 0 20%,transparent 38%),
+    linear-gradient(145deg,#ffffff2d,#ffffff17)!important;
+  box-shadow:0 7px 18px #001b3838,inset 0 1px 0 #ffffff47!important;
+  pointer-events:none!important;
+  will-change:transform,border-radius!important;
+  transition:transform .52s cubic-bezier(.22,1,.36,1),border-radius .42s ease!important;
+}
+.borrower-topbar .top-nav.borrower-nav .borrower-nav-slider:after{
+  content:"";
+  position:absolute;
+  inset:4px 12px 5px 9px;
+  border-radius:999px;
+  background:linear-gradient(100deg,#ffffff17,transparent 72%);
+  filter:blur(.2px);
+}
+.borrower-topbar .top-nav.borrower-nav button{
+  position:relative!important;
+  z-index:1!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:44px!important;
+  min-height:44px!important;
+  max-height:44px!important;
+  padding:0 10px!important;
+  border:0!important;
+  border-radius:12px!important;
+  background:transparent!important;
+  color:#cbd7e3!important;
+  box-shadow:none!important;
+  font-size:10px!important;
+  font-weight:800!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+  transition:color .24s ease,transform .24s ease!important;
+}
+.borrower-topbar .top-nav.borrower-nav button:hover{background:transparent!important;color:#fff!important;transform:translateY(-1px)!important}
+.borrower-topbar .top-nav.borrower-nav button.active{background:transparent!important;border:0!important;color:#fff!important;box-shadow:none!important}
+
+/* Home: compact stat block at left, room status in a two-column vertical rail at right. */
+.borrower-home-overview-grid{
+  display:grid;
+  grid-template-columns:minmax(300px,340px) minmax(0,1fr);
+  gap:10px;
+  align-items:stretch;
+}
+.borrower-home-stats-card,
+.borrower-home-overview-grid>.borrower-room-display{
+  margin:0!important;
+  border:1px solid #d3e0e9!important;
+  border-radius:13px!important;
+  background:#fff!important;
+  box-shadow:0 6px 18px #173c5909!important;
+}
+.borrower-home-stats-card .panel-head{min-height:48px!important;padding:10px 12px!important}
+.borrower-home-stats-card .panel-head strong{font-size:10px!important}
+.borrower-home-stats-card .panel-head small{font-size:7px!important}
+.borrower-home-stats-card .borrower-stats{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:7px!important;
+  margin:0!important;
+  padding:9px 10px 10px!important;
+}
+.borrower-home-stats-card .borrower-stats .stat{
+  min-height:86px!important;
+  padding:10px!important;
+  border-radius:10px!important;
+}
+.borrower-home-stats-card .borrower-stats .stat>strong{font-size:23px!important}
+.borrower-home-stats-card .borrower-stats .stat>span{font-size:7px!important}
+.borrower-home-stats-card .borrower-stats .stat small,
+.borrower-home-stats-card .borrower-stats .stat em{font-size:6px!important}
+.borrower-home-overview-grid>.borrower-room-display .room-display-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:6px!important;
+  padding:9px 10px 10px!important;
+}
+.borrower-home-overview-grid>.borrower-room-display .room-display-tile{
+  min-height:49px!important;
+  padding:8px 10px!important;
+  border-radius:9px!important;
+}
+.borrower-home-overview-grid>.borrower-room-display .room-display-tile strong{font-size:8px!important}
+.borrower-home-overview-grid>.borrower-room-display .room-display-tile span{font-size:6px!important}
+.borrower-home-overview-grid .room-display-tile.borrowed{
+  border-color:#efadb3!important;
+  background:linear-gradient(145deg,#fff1f2,#fbdde0e8)!important;
+  color:#d83b45!important;
+}
+.borrower-home-overview-grid .room-display-tile.borrowed span{color:#b52d38!important}
+.borrower-home-overview-grid .room-display-tile.maintenance{
+  border-color:#efcd90!important;
+  background:linear-gradient(145deg,#fff8ea,#fcebcce8)!important;
+  color:#d88700!important;
+}
+.borrower-home-overview-grid .room-display-tile.maintenance span{color:#9b6200!important}
+
+/* Inventory exposes unit state without exposing borrower identity. */
+.borrower-unit-summary{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:8px!important;
+}
+.borrower-unit-summary strong{
+  color:#153855!important;
+  font-size:9px!important;
+  letter-spacing:.08em!important;
+  text-transform:uppercase!important;
+}
+.borrower-unit-summary span{margin-left:auto!important;text-align:right!important;line-height:1.35!important}
+.borrower-unit-buttons{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.borrower-unit-buttons .borrower-unit-button{
+  display:grid!important;
+  justify-items:center!important;
+  align-content:center!important;
+  gap:2px!important;
+  min-height:40px!important;
+  border-width:1px!important;
+  border-style:solid!important;
+  opacity:1!important;
+}
+.borrower-unit-buttons .borrower-unit-button b{font-size:8px!important;line-height:1!important}
+.borrower-unit-buttons .borrower-unit-button span{font-size:6px!important;font-weight:800!important}
+.borrower-unit-buttons .borrower-unit-button.available{
+  border-color:#9fdfc0!important;
+  background:linear-gradient(145deg,#effcf6,#ddf7eae8)!important;
+  color:#087b4a!important;
+}
+.borrower-unit-buttons .borrower-unit-button.borrowed{
+  border-color:#efadb3!important;
+  background:linear-gradient(145deg,#fff1f2,#fbdde0e8)!important;
+  color:#b52d38!important;
+  cursor:not-allowed!important;
+}
+.borrower-unit-buttons .borrower-unit-button.maintenance{
+  border-color:#efcd90!important;
+  background:linear-gradient(145deg,#fff8ea,#fcebcce8)!important;
+  color:#9b6200!important;
+  cursor:not-allowed!important;
+}
+.borrower-unit-buttons .borrower-unit-button:disabled{opacity:1!important}
+
+/* Rooms page mirrors the admin concept: room cards plus a sticky live sidebar. */
+.borrower-rooms-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 250px;
+  gap:12px;
+  align-items:start;
+}
+.borrower-rooms-layout .borrower-room-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:9px!important;
+}
+.borrower-rooms-layout .borrower-room-grid article{
+  min-height:150px!important;
+  scroll-margin-top:110px;
+}
+.borrower-rooms-layout .borrower-room-grid article.borrowed{
+  border-color:#efadb3!important;
+  background:linear-gradient(145deg,#fff7f7,#fee9eb)!important;
+}
+.borrower-rooms-layout .borrower-room-grid article.borrowed .user-room-state,
+.borrower-rooms-layout .borrower-room-grid article.borrowed h3{color:#a72832!important}
+.borrower-rooms-layout .borrower-room-grid article.borrowed>button:disabled{
+  border-color:#efadb3!important;
+  background:#f8dfe2!important;
+  color:#b52d38!important;
+  opacity:1!important;
+}
+.borrower-room-sidebar{
+  position:sticky!important;
+  top:94px!important;
+  width:100%!important;
+  max-height:calc(100dvh - 112px)!important;
+  overflow:auto!important;
+  padding:11px!important;
+  border:1px solid #d4e1ea!important;
+  border-radius:12px!important;
+  background:#fff!important;
+  box-shadow:0 7px 20px #173c590c!important;
+  scrollbar-gutter:stable;
+}
+.borrower-room-sidebar .room-mini-grid{grid-template-columns:1fr!important;gap:6px!important}
+.borrower-room-sidebar .room-mini-tile{min-height:47px!important;padding:7px 9px!important;border-radius:9px!important}
+.borrower-room-sidebar .room-mini-tile strong{font-size:8px!important}
+.borrower-room-sidebar .room-mini-tile small{font-size:6px!important}
+.borrower-room-sidebar .room-mini-summary{grid-template-columns:1fr 1fr!important}
+.borrower-room-sidebar .room-mini-summary span{padding:7px!important;font-size:6px!important}
+.borrower-room-sidebar .room-mini-summary b{font-size:10px!important}
+.borrower-room-sidebar .room-mini-legend{font-size:6px!important}
+
+@media(max-width:1240px){
+  .borrower-topbar .top-nav.borrower-nav{width:430px!important;min-width:430px!important;max-width:430px!important}
+  .borrower-home-overview-grid{grid-template-columns:300px minmax(0,1fr)}
+  .borrower-rooms-layout{grid-template-columns:minmax(0,1fr) 220px}
+}
+@media(max-width:980px){
+  .borrower-topbar .top-nav.borrower-nav{display:none!important}
+  .borrower-home-overview-grid{grid-template-columns:1fr}
+  .borrower-home-overview-grid>.borrower-room-display .room-display-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  .borrower-rooms-layout{grid-template-columns:1fr}
+  .borrower-room-sidebar{position:static!important;max-height:none!important}
+  .borrower-room-sidebar .room-mini-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+}
+@media(max-width:700px){
+  .borrower-home-overview-grid>.borrower-room-display .room-display-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .borrower-rooms-layout .borrower-room-grid{grid-template-columns:1fr!important}
+  .borrower-room-sidebar .room-mini-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:460px){
+  .borrower-home-stats-card .borrower-stats{grid-template-columns:1fr 1fr!important}
+  .borrower-home-overview-grid>.borrower-room-display .room-display-grid,
+  .borrower-room-sidebar .room-mini-grid{grid-template-columns:1fr!important}
+  .borrower-unit-buttons{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+
+/* =========================================================
+   v34 — borrower dashboard density + admin-matched room cards
+   Bigger information, fewer rows, no dead dashboard space.
+   ========================================================= */
+
+/* Main borrower dashboard uses the same generous admin roundness. */
+.borrower-home-dashboard{
+  margin-top:12px!important;
+}
+.borrower-home-dashboard .borrower-dashboard-zone{
+  overflow:visible!important;
+}
+.borrower-home-overview-grid{
+  grid-template-columns:minmax(390px,430px) minmax(0,1fr)!important;
+  gap:14px!important;
+  align-items:stretch!important;
+}
+.borrower-home-stats-card,
+.borrower-home-overview-grid>.borrower-room-display{
+  overflow:hidden!important;
+  border:1px solid #cbdce8!important;
+  border-radius:24px!important;
+  background:linear-gradient(180deg,#fff,#fbfdff)!important;
+  box-shadow:0 12px 34px #173c590d!important;
+}
+.borrower-home-stats-card{
+  display:grid!important;
+  grid-template-rows:auto 1fr!important;
+}
+.borrower-home-stats-card .panel-head,
+.borrower-home-overview-grid>.borrower-room-display .panel-head{
+  min-height:60px!important;
+  padding:13px 16px!important;
+  border-bottom:1px solid #dce6ee!important;
+  background:linear-gradient(180deg,#fff,#fbfdff)!important;
+}
+.borrower-home-stats-card .panel-head strong,
+.borrower-home-overview-grid>.borrower-room-display .panel-head strong{
+  font-size:13px!important;
+}
+.borrower-home-stats-card .panel-head small,
+.borrower-home-overview-grid>.borrower-room-display .panel-head small{
+  margin-top:2px!important;
+  font-size:8px!important;
+}
+
+/* Four stats stay 2x2, but each card is larger and easier to scan. */
+.borrower-home-stats-card .borrower-stats{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  grid-template-rows:repeat(2,minmax(105px,1fr))!important;
+  gap:10px!important;
+  height:100%!important;
+  margin:0!important;
+  padding:12px!important;
+}
+.borrower-home-stats-card .borrower-stats .stat{
+  min-height:105px!important;
+  padding:14px 15px!important;
+  border-radius:18px!important;
+  box-shadow:0 7px 20px #173c590c!important;
+}
+.borrower-home-stats-card .borrower-stats .stat .stat-topline small{
+  font-size:8px!important;
+  line-height:1.2!important;
+}
+.borrower-home-stats-card .borrower-stats .stat>strong{
+  font-size:31px!important;
+  line-height:1!important;
+}
+.borrower-home-stats-card .borrower-stats .stat .stat-icon{
+  width:30px!important;
+  height:30px!important;
+  border-radius:10px!important;
+  font-size:14px!important;
+}
+.borrower-home-stats-card .borrower-stats .stat .stat-foot em{
+  font-size:7px!important;
+}
+
+/* Ten rooms become 5 columns x 2 rows instead of a long 2-column rail. */
+.borrower-home-overview-grid>.borrower-room-display{
+  display:grid!important;
+  grid-template-rows:auto 1fr!important;
+}
+.borrower-home-overview-grid>.borrower-room-display .room-display-grid{
+  display:grid!important;
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  grid-template-rows:repeat(2,minmax(105px,1fr))!important;
+  gap:9px!important;
+  height:100%!important;
+  padding:12px!important;
+}
+.borrower-home-overview-grid>.borrower-room-display .room-display-tile{
+  min-height:105px!important;
+  padding:15px 14px!important;
+  border-width:1px!important;
+  border-radius:17px!important;
+  align-content:center!important;
+  justify-items:start!important;
+  text-align:left!important;
+  box-shadow:0 6px 18px #173c590a!important;
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease!important;
+}
+.borrower-home-overview-grid>.borrower-room-display .room-display-tile:hover{
+  transform:translateY(-2px)!important;
+  box-shadow:0 10px 24px #173c5914!important;
+}
+.borrower-home-overview-grid>.borrower-room-display .room-display-tile strong{
+  max-width:calc(100% - 18px)!important;
+  font-size:11px!important;
+  line-height:1.15!important;
+}
+.borrower-home-overview-grid>.borrower-room-display .room-display-tile span{
+  margin-top:5px!important;
+  font-size:7px!important;
+  font-weight:850!important;
+  letter-spacing:.06em!important;
+  text-transform:uppercase!important;
+}
+.borrower-home-overview-grid>.borrower-room-display .room-display-tile i{
+  top:13px!important;
+  right:13px!important;
+  width:10px!important;
+  height:10px!important;
+  box-shadow:0 0 0 4px currentColor!important;
+}
+
+/* Public Rooms & Keys borrows with the same visual hierarchy as admin room cards. */
+.borrower-rooms-layout{
+  grid-template-columns:minmax(0,1fr) 280px!important;
+  gap:14px!important;
+}
+.borrower-rooms-layout .borrower-room-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:12px!important;
+}
+.borrower-rooms-layout .borrower-room-grid .borrower-room-card{
+  display:flex!important;
+  flex-direction:column!important;
+  min-height:310px!important;
+  padding:0!important;
+  overflow:hidden!important;
+  border:1px solid #cbdce8!important;
+  border-radius:22px!important;
+  background:#fff!important;
+  box-shadow:0 10px 28px #173c590b!important;
+}
+.borrower-room-card-state{
+  min-height:36px!important;
+  margin:0!important;
+  padding:0 16px!important;
+  border-bottom:1px solid #e1e9ef!important;
+  background:#f8fbfd!important;
+}
+.borrower-room-card-state i{width:8px!important;height:8px!important}
+.borrower-room-card-state strong{font-size:8px!important;letter-spacing:.11em!important}
+.borrower-room-card-title{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  padding:16px 17px 13px;
+  border-bottom:1px solid #e1e9ef;
+}
+.borrower-room-card-title>div{min-width:0}
+.borrower-room-card-title>div>span{color:#6d8395;font-size:7px;font-weight:900;letter-spacing:.13em}
+.borrower-room-card-title h3{margin:4px 0 3px!important;color:#153754!important;font-size:21px!important;letter-spacing:-.025em!important}
+.borrower-room-card-title p{margin:0!important;color:#708697!important;font-size:9px!important}
+.borrower-key-mark{
+  display:grid;
+  place-items:center;
+  flex:0 0 40px;
+  width:40px;
+  height:40px;
+  border:1px solid #cfe0eb;
+  border-radius:14px;
+  background:#f5f9fc;
+  color:#1685ee;
+  font-size:18px;
+  font-weight:900;
+}
+.borrower-key-mark.available{border-color:#b9e7d0;background:#eefaf4;color:#15945a}
+.borrower-key-mark.borrowed{border-color:#f0b8bd;background:#fff0f1;color:#c43843}
+.borrower-key-mark.maintenance{border-color:#edd09d;background:#fff7e8;color:#c57800}
+.borrower-room-card-details{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:0;
+  margin:12px 16px 0;
+  overflow:hidden;
+  border:1px solid #dce6ed;
+  border-radius:13px;
+  background:#f8fbfd;
+}
+.borrower-room-card-details>span{display:grid;gap:3px;padding:10px 11px}
+.borrower-room-card-details>span+span{border-left:1px solid #dce6ed}
+.borrower-room-card-details small{color:#778d9e;font-size:7px;font-weight:750}
+.borrower-room-card-details strong{overflow:hidden;color:#24455e;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
+.borrower-room-card-message{
+  display:grid;
+  gap:3px;
+  margin:10px 16px 12px;
+  padding:10px 11px;
+  border-radius:13px;
+  background:#f5faf7;
+}
+.borrower-room-card-message strong{color:#1a7049;font-size:9px}
+.borrower-room-card-message small{color:#708697;font-size:7px;line-height:1.4}
+.borrower-room-card.borrowed .borrower-room-card-message{background:#fff4f5}
+.borrower-room-card.borrowed .borrower-room-card-message strong{color:#b52d38}
+.borrower-room-card.maintenance .borrower-room-card-message{background:#fff8eb}
+.borrower-room-card.maintenance .borrower-room-card-message strong{color:#9b6200}
+.borrower-rooms-layout .borrower-room-grid .borrower-room-card>button{
+  min-height:42px!important;
+  margin:auto 16px 16px!important;
+  border-radius:13px!important;
+  font-size:8px!important;
+}
+
+/* Sidebar keeps the admin live-map feel and uses the same softer card radius. */
+.borrower-room-sidebar{
+  top:96px!important;
+  padding:13px!important;
+  border-radius:22px!important;
+  box-shadow:0 12px 30px #173c590e!important;
+}
+.borrower-room-sidebar .room-mini-tile{
+  min-height:54px!important;
+  border-radius:13px!important;
+}
+.borrower-room-sidebar .room-mini-tile strong{font-size:9px!important}
+.borrower-room-sidebar .room-mini-tile small{font-size:7px!important}
+
+/* Borrow request dialog inherits the clean admin-card shape instead of feeling separate. */
+.borrower-request-modal{
+  overflow:hidden!important;
+  border:1px solid #c7d8e5!important;
+  border-radius:24px!important;
+  box-shadow:0 28px 80px #0a294548!important;
+}
+.borrower-request-modal .modal-head{
+  padding:18px 20px!important;
+  background:linear-gradient(180deg,#fff,#f7fbfe)!important;
+}
+.borrower-request-modal .modal-head h2{font-size:22px!important}
+.borrower-request-modal form{padding:18px 20px 20px!important}
+.borrower-request-modal .user-request-summary{
+  border-radius:15px!important;
+  background:linear-gradient(135deg,#eef7ff,#f8fbfe)!important;
+}
+.borrower-request-modal input,
+.borrower-request-modal select,
+.borrower-request-modal textarea{
+  border-radius:12px!important;
+}
+.borrower-request-modal footer button{border-radius:12px!important}
+
+@media(max-width:1380px){
+  .borrower-home-overview-grid{grid-template-columns:370px minmax(0,1fr)!important}
+  .borrower-home-overview-grid>.borrower-room-display .room-display-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:auto!important}
+  .borrower-rooms-layout{grid-template-columns:minmax(0,1fr) 245px!important}
+}
+@media(max-width:1100px){
+  .borrower-home-overview-grid{grid-template-columns:1fr!important}
+  .borrower-home-overview-grid>.borrower-room-display .room-display-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  .borrower-rooms-layout{grid-template-columns:1fr!important}
+  .borrower-room-sidebar{position:static!important;max-height:none!important}
+  .borrower-room-sidebar .room-mini-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+}
+@media(max-width:760px){
+  .borrower-home-stats-card .borrower-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .borrower-home-overview-grid>.borrower-room-display .room-display-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .borrower-rooms-layout .borrower-room-grid{grid-template-columns:1fr!important}
+  .borrower-room-sidebar .room-mini-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+
+/* =========================================================
+   v35 — taller borrower availability dashboard
+   Fills the dead space below without making the layout wider.
+   ========================================================= */
+@media(min-width:1101px){
+  .borrower-home-dashboard .borrower-dashboard-zone{
+    min-height:clamp(620px,68vh,790px)!important;
+  }
+
+  .borrower-home-overview-grid{
+    min-height:clamp(560px,61vh,710px)!important;
+    align-items:stretch!important;
+  }
+
+  .borrower-home-stats-card,
+  .borrower-home-overview-grid>.borrower-room-display{
+    height:100%!important;
+    min-height:clamp(560px,61vh,710px)!important;
+  }
+
+  .borrower-home-stats-card .borrower-stats{
+    grid-template-rows:repeat(2,minmax(0,1fr))!important;
+    gap:14px!important;
+    padding:16px!important;
+  }
+
+  .borrower-home-stats-card .borrower-stats .stat{
+    min-height:0!important;
+    height:100%!important;
+    padding:20px 20px!important;
+    border-radius:22px!important;
+    align-content:center!important;
+  }
+
+  .borrower-home-stats-card .borrower-stats .stat>strong{
+    font-size:clamp(36px,2.8vw,52px)!important;
+  }
+
+  .borrower-home-stats-card .borrower-stats .stat .stat-icon{
+    width:44px!important;
+    height:44px!important;
+    border-radius:14px!important;
+    font-size:18px!important;
+  }
+
+  .borrower-home-stats-card .borrower-stats .stat .stat-topline small{
+    font-size:10px!important;
+  }
+
+  .borrower-home-stats-card .borrower-stats .stat .stat-foot em{
+    font-size:9px!important;
+  }
+
+  .borrower-home-overview-grid>.borrower-room-display .room-display-grid{
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    grid-template-rows:repeat(2,minmax(0,1fr))!important;
+    gap:12px!important;
+    height:100%!important;
+    padding:16px!important;
+  }
+
+  .borrower-home-overview-grid>.borrower-room-display .room-display-tile{
+    min-height:0!important;
+    height:100%!important;
+    padding:22px 18px!important;
+    border-radius:22px!important;
+    align-content:center!important;
+  }
+
+  .borrower-home-overview-grid>.borrower-room-display .room-display-tile strong{
+    font-size:clamp(12px,1vw,16px)!important;
+    line-height:1.15!important;
+  }
+
+  .borrower-home-overview-grid>.borrower-room-display .room-display-tile span{
+    margin-top:8px!important;
+    font-size:9px!important;
+  }
+
+  .borrower-home-overview-grid>.borrower-room-display .room-display-tile i{
+    top:18px!important;
+    right:18px!important;
+    width:12px!important;
+    height:12px!important;
+    box-shadow:0 0 0 5px currentColor!important;
+  }
+}
+
+@media(min-width:1101px) and (max-width:1380px){
+  .borrower-home-dashboard .borrower-dashboard-zone{
+    min-height:clamp(560px,65vh,700px)!important;
+  }
+  .borrower-home-overview-grid,
+  .borrower-home-stats-card,
+  .borrower-home-overview-grid>.borrower-room-display{
+    min-height:clamp(500px,58vh,630px)!important;
+  }
+  .borrower-home-overview-grid>.borrower-room-display .room-display-grid{
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    grid-template-rows:repeat(2,minmax(0,1fr))!important;
+  }
+}

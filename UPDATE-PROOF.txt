@@ -1,44 +1,31 @@
-COAC Tool Aid cumulative update v28
-RICH USER PORTAL / ADMIN-VIBE PARITY
+COAC Tool Crib cumulative update v34
 
-This cumulative patch includes all v27 user portal + printable borrowing form changes, plus a full visual upgrade for student/professor accounts.
+Built cumulatively from v33.
 
-v28 USER UI CHANGES
-- User portal now uses the same navy COAC top navigation language as the admin dashboard.
-- Real COAC logo header instead of the flat user-only mark.
-- Smooth 4-tab sliding navigation pill for Home / Inventory / Rooms & Keys / My Activity.
-- Account block now mirrors the admin cloud-account presentation while keeping user permissions limited.
-- Home now uses the same full-width COAC hero treatment as admin:
-  * blue/navy gradient
-  * grid background
-  * gear motif
-  * live date/time
-  * Luntian side branding
-  * COAC program showcase cards and logos
-- Added personal identity strip in the hero showing program, TUPV ID, and access level.
-- Added admin-style Personal Borrowing Overview zone.
-- Added detailed activity stat cards for Active / Pending / Overdue / Completed Returns.
-- Added richer Current Activity panel with type icons and status pills.
-- Added Available Now panel for live tool-unit, room-key, and personal-record counts.
-- Added My COAC Access profile panel with verified account identity details.
-- Added Live Room Display using the same room-tile language as the admin dashboard while preserving borrower privacy.
-- Inventory catalog cards are larger, deeper, and visually consistent with the admin dashboard.
-- Tool category controls are now larger card-style tabs.
-- Room & key cards are deeper and more polished while still hiding other borrowers' personal details.
-- My Activity table now uses richer admin-style table spacing, headers, hover states, and print actions.
-- Request modals were visually aligned to the richer COAC style.
-- Responsive/mobile layouts updated for the richer user dashboard.
+Borrower dashboard refinements:
+- Main dashboard cards use larger admin-style rounded corners.
+- 4 Tool Crib status cards remain in a compact 2x2 block, with larger values/icons/text.
+- Live Rooms & Keys is compressed from a long vertical list into a 5-column x 2-row desktop layout for 10 rooms.
+- Room tiles are larger and easier to read while reducing overall dashboard height.
+- Status and room panels now visually balance each other so the previous dead/negative space is removed.
+- Existing liquid/sliding borrower nav from v33 remains.
 
-PERMISSIONS REMAIN LIMITED
-- No user inventory editing/deletion.
-- No maintenance administration.
-- No other-borrower private data.
-- No admin transaction deletion or global history access.
-- User borrowing still uses request -> Tool Aid approval -> physical release.
+Borrower Rooms & Keys refinements:
+- Room borrowing cards now mirror the admin visual hierarchy.
+- Larger rounded cards with status header, room name/use, key ID, key storage, availability message and request action.
+- Borrowed rooms remain visible in red; maintenance remains orange; available remains green.
+- Sticky admin-style live room sidebar remains.
+- Request modal has matching rounded/admin-style treatment.
 
-PRINTING
-- v27 COAC A4 Release / Return / Complete Record forms remain included.
-- Default releasing officer remains Sir John Ray.
+Preserved cumulative behavior:
+- public borrower page, admin account only
+- batch borrowing and one printable form per borrowing batch
+- scroll fixes
+- public unit status (available/borrowed/maintenance)
+- admin monitoring, return evaluation, maintenance and transaction history
 
-ZIP STRUCTURE
-The ZIP begins directly with app/, public/, and UPDATE-PROOF.txt so it can be merged directly into the COAC DASH project root.
+v35 TALL BORROWER DASHBOARD
+- Stretches Tool Crib Status and Live Rooms & Keys downward to use the empty lower half of the page.
+- Keeps desktop room cards at 5 x 2 while making each room tile taller and easier to read.
+- Enlarges 2 x 2 availability stats, values, and icons.
+- Uses responsive viewport-based height clamps so smaller screens are not forced into the tall desktop layout.

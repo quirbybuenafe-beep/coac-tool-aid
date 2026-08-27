@@ -9,7 +9,7 @@ type ItemStatus = "Available" | "Borrowed" | "Maintenance";
 type LoanStatus = "Pending" | "On time" | "Due today" | "Overdue" | "Key out" | "Returned" | "Declined";
 type LoanKind = "Tool" | "Room Key";
 type BorrowerType = "Student" | "Professor";
-type AccessRole = "admin" | "student" | "professor";
+type AccessRole = "admin" | "student" | "professor" | "borrower";
 type PrintFormMode = "release" | "return" | "complete";
 type AccountPrefs = Models.Preferences & {
   role?: AccessRole;
@@ -70,6 +70,7 @@ type Loan = {
   kind?: LoanKind;
   purpose?: string;
   unitNumber?: number;
+  borrowBatchId?: string;
 };
 
 type ToolCategory =
@@ -98,12 +99,12 @@ const toolsSeed: Tool[] = [
 ];
 
 const roomKeysSeed: RoomKey[] = [
-  { id: "KEY-COAC-101", room: "COAC 101", use: "Automation Laboratory", storage: "Tool Aid Key Board", status: "Available" },
-  { id: "KEY-COAC-102", room: "COAC 102", use: "Mechatronics Laboratory", storage: "Tool Aid Key Board", status: "Available" },
-  { id: "KEY-COAC-103", room: "COAC 103", use: "Robotics Laboratory", storage: "Tool Aid Key Board", status: "Available" },
-  { id: "KEY-COAC-104", room: "COAC 104", use: "Electronics Laboratory", storage: "Tool Aid Key Board", status: "Available" },
-  { id: "KEY-COAC-105", room: "COAC 105", use: "Control Systems Laboratory", storage: "Tool Aid Key Board", status: "Available" },
-  { id: "KEY-COAC-FAB", room: "Fabrication Room", use: "Machining and Fabrication", storage: "Tool Aid Key Board", status: "Available" },
+  { id: "KEY-COAC-101", room: "COAC 101", use: "Automation Laboratory", storage: "Tool Crib Key Board", status: "Available" },
+  { id: "KEY-COAC-102", room: "COAC 102", use: "Mechatronics Laboratory", storage: "Tool Crib Key Board", status: "Available" },
+  { id: "KEY-COAC-103", room: "COAC 103", use: "Robotics Laboratory", storage: "Tool Crib Key Board", status: "Available" },
+  { id: "KEY-COAC-104", room: "COAC 104", use: "Electronics Laboratory", storage: "Tool Crib Key Board", status: "Available" },
+  { id: "KEY-COAC-105", room: "COAC 105", use: "Control Systems Laboratory", storage: "Tool Crib Key Board", status: "Available" },
+  { id: "KEY-COAC-FAB", room: "Fabrication Room", use: "Machining and Fabrication", storage: "Tool Crib Key Board", status: "Available" },
 ];
 
 const loansSeed: Loan[] = [
@@ -216,7 +217,7 @@ const accessRoleOf = (user: Models.User<Models.Preferences>): AccessRole => {
     ? (user as Models.User<Models.Preferences> & { labels?: string[] }).labels ?? []
     : [];
   if (labels.includes("admin")) return "admin";
-  if (prefs.role === "student" || prefs.role === "professor") return prefs.role;
+  if (prefs.role === "borrower" || prefs.role === "student" || prefs.role === "professor") return prefs.role;
   // Legacy COAC accounts created before role support stay administrative.
   return "admin";
 };
@@ -225,6 +226,22 @@ const transactionNumberOf = (loan: Loan) => {
   const date = new Date(loan.borrowedAtIso ?? loan.requestedAtIso ?? loan.id);
   const year = Number.isNaN(date.getTime()) ? new Date().getFullYear() : date.getFullYear();
   return `COAC-${year}-${String(loan.id).slice(-6).padStart(6, "0")}`;
+};
+
+const borrowingBatchKeyOf = (loan: Loan) => {
+  if (loan.borrowBatchId) return loan.borrowBatchId;
+  const moment = loan.borrowedAtIso ?? loan.requestedAtIso ?? loan.borrowed ?? loan.requestedAt ?? String(loan.id);
+  return `${loan.studentId}::${loan.student}::${moment}`;
+};
+
+const borrowingBatchNumberOf = (loans: Loan[]) => {
+  const primary = loans[0];
+  if (!primary) return "COAC-TRANSACTION";
+  const date = new Date(primary.borrowedAtIso ?? primary.requestedAtIso ?? primary.id);
+  const year = Number.isNaN(date.getTime()) ? new Date().getFullYear() : date.getFullYear();
+  const seed = primary.borrowBatchId ?? String(primary.id);
+  const digits = seed.replace(/\D/g, "").slice(-6) || String(primary.id).slice(-6);
+  return `COAC-${year}-${digits.padStart(6, "0")}`;
 };
 
 const cloudRowId = (kind: "tool" | "room" | "loan", value: string | number) => {
@@ -315,16 +332,40 @@ export default function Home() {
   const [cloudUser, setCloudUser] = useState<Models.User<Models.Preferences> | null>(null);
   const [cloudStatus, setCloudStatus] = useState<CloudStatus>("checking");
   const [cloudHydrated, setCloudHydrated] = useState(false);
+  const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const accessRole = cloudUser ? accessRoleOf(cloudUser) : "borrower";
+  const isAdmin = accessRole === "admin";
   useEffect(() => {
     let cancelled = false;
-    account
-      .get()
-      .then((user) => {
-        if (!cancelled) setCloudUser(user);
-      })
-      .catch(() => {
+
+    const openBorrowerSession = async () => {
+      try {
+        const user = await account.get();
+        if (!cancelled) {
+          setCloudUser(user);
+          setCloudStatus("syncing");
+        }
+        return;
+      } catch {
+        // No signed-in session. Borrowers do not need personal accounts, so create
+        // one anonymous Tool Crib session only for database access.
+      }
+
+      try {
+        await account.createAnonymousSession();
+        await account.updatePrefs({ prefs: { role: "borrower" } });
+        const borrowerSession = await account.get();
+        if (!cancelled) {
+          setCloudUser(borrowerSession);
+          setCloudStatus("syncing");
+        }
+      } catch (error) {
+        console.error("Borrower access could not start", error);
         if (!cancelled) setCloudStatus("offline");
-      });
+      }
+    };
+
+    void openBorrowerSession();
     return () => {
       cancelled = true;
     };
@@ -446,7 +487,7 @@ export default function Home() {
   }, [cloudUser?.$id, ready]);
 
   useEffect(() => {
-    if (!cloudUser || !cloudHydrated) return;
+    if (!cloudUser || !cloudHydrated || !isAdmin) return;
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       setCloudStatus("syncing");
@@ -494,7 +535,7 @@ export default function Home() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [tools, roomKeys, loans, cloudUser, cloudHydrated]);
+  }, [tools, roomKeys, loans, cloudUser, cloudHydrated, isAdmin]);
 
   const handleSignedIn = (user: Models.User<Models.Preferences>) => {
     setCloudHydrated(false);
@@ -512,18 +553,45 @@ export default function Home() {
     }
   };
 
+  const openAdminLogin = async () => {
+    try {
+      if (cloudUser) await account.deleteSession({ sessionId: "current" });
+    } catch {
+      // Continue to the protected admin sign-in even if the anonymous session already ended.
+    } finally {
+      setCloudUser(null);
+      setCloudHydrated(false);
+      setCloudStatus("offline");
+      setAdminLoginOpen(true);
+    }
+  };
+
+  const returnToBorrowerPage = async () => {
+    setAdminLoginOpen(false);
+    setCloudStatus("checking");
+    try {
+      try {
+        await account.deleteSession({ sessionId: "current" });
+      } catch {
+        // There may be no current session when returning from the admin sign-in screen.
+      }
+      await account.createAnonymousSession();
+      await account.updatePrefs({ prefs: { role: "borrower" } });
+      handleSignedIn(await account.get());
+    } catch (error) {
+      console.error("Borrower access could not start", error);
+      setCloudUser(null);
+      setCloudHydrated(false);
+      setCloudStatus("offline");
+    }
+  };
+
   useEffect(() => {
     if (!toast) return;
     const id = setTimeout(() => setToast(""), 2600);
     return () => clearTimeout(id);
   }, [toast]);
 
-  const accessRole = cloudUser ? accessRoleOf(cloudUser) : "admin";
-  const isAdmin = accessRole === "admin";
-  const accountPrefs = cloudUser ? accountPrefsOf(cloudUser) : ({} as AccountPrefs);
-  const accountBorrowerType: BorrowerType = accessRole === "professor" ? "Professor" : "Student";
-  const accountStudentId = String(accountPrefs.studentId ?? "").trim();
-  const accountProgram = String(accountPrefs.program ?? "").trim();
   const active = loans.filter((loan) => !["Returned", "Pending", "Declined"].includes(loan.status));
   const activeToolLoans = active.filter((loan) => kindOf(loan) === "Tool");
   const activeRoomLoans = active.filter((loan) => kindOf(loan) === "Room Key");
@@ -610,6 +678,9 @@ export default function Home() {
   const printLoan = printLoanId
     ? loans.find((loan) => loan.id === printLoanId) ?? null
     : null;
+  const printLoans = printLoan
+    ? loans.filter((loan) => borrowingBatchKeyOf(loan) === borrowingBatchKeyOf(printLoan))
+    : [];
   const selectedBorrower = selectedBorrowerId
     ? loans.find((loan) => loan.studentId === selectedBorrowerId)
     : undefined;
@@ -802,13 +873,23 @@ export default function Home() {
   );
   const transactionGroups = Array.from(
     visibleLoans.reduce((groups, loan) => {
-      const key = `${loan.studentId}::${loan.student}`;
+      const key = borrowingBatchKeyOf(loan);
       const group = groups.get(key) ?? [];
       group.push(loan);
       groups.set(key, group);
       return groups;
     }, new Map<string, Loan[]>()),
-  ).map(([key, groupLoans]) => ({ key, loans: groupLoans, borrower: groupLoans[0] }));
+  )
+    .map(([key, groupLoans]) => ({
+      key,
+      loans: [...groupLoans].sort((a, b) => a.id - b.id),
+      borrower: groupLoans[0],
+    }))
+    .sort((a, b) => {
+      const aTime = new Date(a.borrower.borrowedAtIso ?? a.borrower.requestedAtIso ?? a.borrower.id).getTime();
+      const bTime = new Date(b.borrower.borrowedAtIso ?? b.borrower.requestedAtIso ?? b.borrower.id).getTime();
+      return (Number.isNaN(bTime) ? b.borrower.id : bTime) - (Number.isNaN(aTime) ? a.borrower.id : aTime);
+    });
 
   const borrowerClassificationOf = (borrower: Loan) => {
     if (borrowerTypeOf(borrower) === "Professor") return "Professor";
@@ -1069,6 +1150,7 @@ export default function Home() {
     const studentId = identity.id;
     const program = String(form.get("program"));
     const transactionId = Date.now();
+    const borrowBatchId = `BORROW-${transactionId}`;
     const newLoans: Loan[] = validSelections.map((selection, index) => {
       const tool = tools.find((entry) => entry.id === selection.assetId)!;
       return {
@@ -1085,6 +1167,7 @@ export default function Home() {
         due: fmt(due),
         status: "On time",
         kind: "Tool",
+        borrowBatchId,
       };
     });
 
@@ -1126,8 +1209,10 @@ export default function Home() {
       return;
     }
 
+    const roomTransactionId = Date.now();
     const loan: Loan = {
-      id: Date.now(),
+      id: roomTransactionId,
+      borrowBatchId: `BORROW-${roomTransactionId}`,
       student: identity.name,
       studentId: identity.id,
       program: String(form.get("program")),
@@ -1151,79 +1236,160 @@ export default function Home() {
     setToast(`${room.room} key released to ${loan.student}.`);
   };
 
-  const requestToolForUser = ({ assetId, unitNumber, days }: { assetId: string; unitNumber: number; days: number }) => {
-    if (!cloudUser || isAdmin) return;
+  const persistBorrowerRequest = async (request: Loan) => {
+    try {
+      await tables.upsertRow({
+        databaseId: appwriteConfig.databaseId,
+        tableId: appwriteConfig.tableId,
+        rowId: cloudRowId("loan", request.id),
+        data: { kind: "loan", data: JSON.stringify(request) },
+      });
+      setLoans((current) => [request, ...current.filter((entry) => entry.id !== request.id)]);
+      return true;
+    } catch (error) {
+      console.error("Borrower request save failed", error);
+      setToast(`Request could not be sent: ${appwriteErrorMessage(error)}`);
+      return false;
+    }
+  };
+
+  const requestToolForUser = async ({
+    assetId,
+    unitNumber,
+    days,
+    student,
+    studentId,
+    program,
+    borrowerType,
+    purpose,
+  }: {
+    assetId: string;
+    unitNumber: number;
+    days: number;
+    student: string;
+    studentId: string;
+    program: string;
+    borrowerType: BorrowerType;
+    purpose: string;
+  }) => {
+    if (!cloudUser || isAdmin) return false;
     const tool = tools.find((entry) => entry.id === assetId);
     if (!tool || !availableUnitNumbers(tool).includes(unitNumber)) {
       setToast("That numbered tool is no longer available. Choose another unit.");
-      return;
+      return false;
     }
-    if (!accountStudentId) {
-      setToast("Your account is missing a TUPV/employee ID. Sign out and update your user profile.");
-      return;
+
+    const identity = validateBorrowerIdentity(student, studentId);
+    if (!identity.ok) {
+      setToast(identity.message);
+      return false;
     }
+
+    const normalizedId = normalizeBorrowerId(identity.id);
+    const hasOverdue = loans.some(
+      (loan) => normalizeBorrowerId(loan.studentId) === normalizedId && loan.status === "Overdue",
+    );
+    if (hasOverdue) {
+      setToast("This borrower has an overdue item. Return it before sending another request.");
+      return false;
+    }
+
     const duplicatePending = loans.some(
       (loan) =>
         loan.status === "Pending" &&
-        normalizeBorrowerId(loan.studentId) === normalizeBorrowerId(accountStudentId) &&
+        normalizeBorrowerId(loan.studentId) === normalizedId &&
         loan.assetId === assetId &&
         unitNumberOf(loan) === unitNumber,
     );
     if (duplicatePending) {
-      setToast("You already have a pending request for this exact unit.");
-      return;
+      setToast("This borrower already has a pending request for this exact unit.");
+      return false;
     }
+
     const requestedAt = new Date();
+    const requestId = Date.now();
     const request: Loan = {
-      id: Date.now(),
-      student: cloudUser.name || cloudUser.email,
-      studentId: accountStudentId,
-      program: accountProgram || "Unspecified",
-      borrowerType: accountBorrowerType,
+      id: requestId,
+      borrowBatchId: `REQUEST-${requestId}`,
+      student: identity.name,
+      studentId: identity.id,
+      program: program.trim() || "Unspecified",
+      borrowerType,
       item: unitLabelOf(tool, unitNumber),
       assetId: tool.id,
       unitNumber,
       borrowed: "Awaiting release",
       requestedAt: fmtDateTime(requestedAt),
       requestedAtIso: requestedAt.toISOString(),
-      requestedDays: days,
+      requestedDays: Math.max(1, days),
       due: "—",
       status: "Pending",
       kind: "Tool",
+      purpose: purpose.trim(),
     };
-    setLoans((current) => [request, ...current]);
-    setToast(`${request.item} request sent to Tool Aid for approval.`);
+    const saved = await persistBorrowerRequest(request);
+    if (saved) setToast(`${request.item} request sent to Tool Crib for approval.`);
+    return saved;
   };
 
-  const requestRoomForUser = ({ roomId, purpose }: { roomId: string; purpose: string }) => {
-    if (!cloudUser || isAdmin) return;
+  const requestRoomForUser = async ({
+    roomId,
+    purpose,
+    student,
+    studentId,
+    program,
+    borrowerType,
+  }: {
+    roomId: string;
+    purpose: string;
+    student: string;
+    studentId: string;
+    program: string;
+    borrowerType: BorrowerType;
+  }) => {
+    if (!cloudUser || isAdmin) return false;
     const room = roomKeys.find((entry) => entry.id === roomId && entry.status === "Available");
     if (!room) {
       setToast("That room key is no longer available.");
-      return;
+      return false;
     }
-    if (!accountStudentId) {
-      setToast("Your account is missing a TUPV/employee ID. Sign out and update your user profile.");
-      return;
+
+    const identity = validateBorrowerIdentity(student, studentId);
+    if (!identity.ok) {
+      setToast(identity.message);
+      return false;
     }
+
+    const normalizedId = normalizeBorrowerId(identity.id);
+    const hasOverdue = loans.some(
+      (loan) => normalizeBorrowerId(loan.studentId) === normalizedId && loan.status === "Overdue",
+    );
+    if (hasOverdue) {
+      setToast("This borrower has an overdue item. Return it before sending another request.");
+      return false;
+    }
+
     const duplicatePending = loans.some(
       (loan) =>
         loan.status === "Pending" &&
         kindOf(loan) === "Room Key" &&
-        normalizeBorrowerId(loan.studentId) === normalizeBorrowerId(accountStudentId) &&
+        normalizeBorrowerId(loan.studentId) === normalizedId &&
         loan.assetId === roomId,
     );
     if (duplicatePending) {
-      setToast("You already have a pending request for this room key.");
-      return;
+      setToast("This borrower already has a pending request for this room key.");
+      return false;
     }
+
     const requestedAt = new Date();
+    const requestId = Date.now();
     const request: Loan = {
-      id: Date.now(),
-      student: cloudUser.name || cloudUser.email,
-      studentId: accountStudentId,
-      program: accountProgram || "Unspecified",
-      borrowerType: accountBorrowerType,
+      id: requestId,
+      borrowBatchId: `REQUEST-${requestId}`,
+      student: identity.name,
+      studentId: identity.id,
+      program: program.trim() || "Unspecified",
+      borrowerType,
       item: `${room.room} key`,
       assetId: room.id,
       borrowed: "Awaiting release",
@@ -1234,8 +1400,9 @@ export default function Home() {
       kind: "Room Key",
       purpose: purpose.trim(),
     };
-    setLoans((current) => [request, ...current]);
-    setToast(`${room.room} key request sent to Tool Aid for approval.`);
+    const saved = await persistBorrowerRequest(request);
+    if (saved) setToast(`${room.room} key request sent to Tool Crib for approval.`);
+    return saved;
   };
 
   const approveRequest = (loan: Loan) => {
@@ -1576,25 +1743,31 @@ export default function Home() {
   const attentionCount =
     overdueLoans.length + dueTodayLoans.length + maintenanceToolCount + activeRoomLoans.length;
 
+  if (adminLoginOpen) {
+    return (
+      <CloudLogin
+        onSignedIn={(user) => {
+          setAdminLoginOpen(false);
+          handleSignedIn(user);
+        }}
+        onBack={() => void returnToBorrowerPage()}
+      />
+    );
+  }
+
   if (cloudStatus === "checking") {
     return <CloudLoading />;
   }
 
-  if (!cloudUser) {
-    return <CloudLogin onSignedIn={handleSignedIn} />;
-  }
-
-  if (!isAdmin) {
+  if (!cloudUser || !isAdmin) {
     return (
-      <UserPortal
-        user={cloudUser}
-        role={accessRole}
+      <BorrowerPortal
         tools={tools}
         rooms={roomKeys}
         loans={loans}
         onRequestTool={requestToolForUser}
         onRequestRoom={requestRoomForUser}
-        onSignOut={() => void signOut()}
+        onAdminAccess={() => void openAdminLogin()}
         toast={toast}
       />
     );
@@ -1606,7 +1779,7 @@ export default function Home() {
         <button className="brand" onClick={() => setView("Dashboard")}>
           <img src="/coac-logo.png" alt="COAC logo" />
           <span>
-            <strong>COAC Tool Aid</strong>
+            <strong>Tool Crib</strong>
             <small>College of Automation and Control</small>
           </span>
         </button>
@@ -1674,12 +1847,12 @@ export default function Home() {
               </aside>
             )}
           </div>
-          <button className="cloud-account" onClick={() => void signOut()} title="Sign out">
+          <button className="cloud-account" onClick={() => void returnToBorrowerPage()} title="Sign out and return to borrower page">
             <span className="avatar">
               {(cloudUser.name || cloudUser.email).slice(0, 2).toUpperCase()}
             </span>
             <span>
-              <strong>{cloudUser.name || "Tool Aid"}</strong>
+              <strong>{cloudUser.name || "Tool Crib"}</strong>
               <small className={`cloud-state ${cloudStatus}`}>
                 {cloudStatus === "syncing"
                   ? "Saving..."
@@ -2411,7 +2584,7 @@ export default function Home() {
                         ) : roomState === "vacant" ? (
                           <div className="room-vacant-message">
                             <strong>Ready for borrowing</strong>
-                            <p>The room key is on the Tool Aid key board.</p>
+                            <p>The room key is on the Tool Crib key board.</p>
                             {lastReturn?.returnedAt && (
                               <p>Last returned: <b>{lastReturn.returnedAt}</b></p>
                             )}
@@ -2853,7 +3026,7 @@ export default function Home() {
                   <div className="panel-head">
                     <div>
                       <strong>Borrowing transactions</strong>
-                      <small>{transactionGroups.length} borrower{transactionGroups.length === 1 ? "" : "s"} · {visibleLoans.length} item records</small>
+                      <small>{transactionGroups.length} borrowing transaction{transactionGroups.length === 1 ? "" : "s"} · {visibleLoans.length} item records</small>
                     </div>
                     <div className="transaction-head-actions">
                       <span className="summary">{active.length} active</span>
@@ -2913,33 +3086,44 @@ export default function Home() {
                           <tbody className={`transaction-group ${isOpen ? "open" : ""}`} key={group.key}>
                             <tr className="transaction-group-row">
                               <td colSpan={8}>
-                                <button
-                                  type="button"
-                                  className="transaction-group-toggle"
-                                  aria-expanded={isOpen}
-                                  onClick={() =>
-                                    setOpenTransactionGroups((current) =>
-                                      current.includes(group.key)
-                                        ? current.filter((key) => key !== group.key)
-                                        : [...current, group.key],
-                                    )
-                                  }
-                                >
-                                  <span className="transaction-group-avatar">{initials}</span>
-                                  <span className="transaction-group-person">
-                                    <strong>{group.borrower.student}</strong>
-                                    <small>{borrowerTypeOf(group.borrower)} · {group.borrower.studentId} · {group.borrower.program}</small>
-                                  </span>
-                                  <span className="transaction-group-preview">
-                                    {group.loans.slice(0, 3).map((loan) => loan.item).join(" · ")}
-                                    {group.loans.length > 3 ? ` +${group.loans.length - 3} more` : ""}
-                                  </span>
-                                  <span className="transaction-group-counts">
-                                    <b>{group.loans.length} item{group.loans.length === 1 ? "" : "s"}</b>
-                                    <small>{activeCount} active</small>
-                                  </span>
-                                  <i aria-hidden="true">{isOpen ? "−" : "+"}</i>
-                                </button>
+                                <div className="transaction-group-summary">
+                                  <button
+                                    type="button"
+                                    className="transaction-group-toggle"
+                                    aria-expanded={isOpen}
+                                    onClick={() =>
+                                      setOpenTransactionGroups((current) =>
+                                        current.includes(group.key)
+                                          ? current.filter((key) => key !== group.key)
+                                          : [...current, group.key],
+                                      )
+                                    }
+                                  >
+                                    <span className="transaction-group-avatar">{initials}</span>
+                                    <span className="transaction-group-person">
+                                      <strong>{group.borrower.student}</strong>
+                                      <small>{borrowerTypeOf(group.borrower)} · {group.borrower.studentId} · {group.borrower.program}</small>
+                                    </span>
+                                    <span className="transaction-group-preview">
+                                      {group.loans.slice(0, 3).map((loan) => loan.item).join(" · ")}
+                                      {group.loans.length > 3 ? ` +${group.loans.length - 3} more` : ""}
+                                    </span>
+                                    <span className="transaction-group-counts">
+                                      <b>{group.loans.length} item{group.loans.length === 1 ? "" : "s"}</b>
+                                      <small>{activeCount} active</small>
+                                    </span>
+                                    <i aria-hidden="true">{isOpen ? "−" : "+"}</i>
+                                  </button>
+                                  {group.loans.some((loan) => !["Pending", "Declined"].includes(loan.status)) && (
+                                    <button
+                                      type="button"
+                                      className="transaction-batch-print"
+                                      onClick={() => setPrintLoanId(group.loans[0].id)}
+                                    >
+                                      Print form
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                             {isOpen && group.loans.map((loan, index) => (
@@ -3020,18 +3204,6 @@ export default function Home() {
                                       </button>
                                     ) : (
                                       <span className="muted">{loan.status === "Declined" ? "Declined" : "Completed"}</span>
-                                    )}
-                                    {!(["Pending", "Declined"].includes(loan.status)) && (
-                                      <button
-                                        type="button"
-                                        className="small print-record-button"
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          setPrintLoanId(loan.id);
-                                        }}
-                                      >
-                                        Print form
-                                      </button>
                                     )}
                                   </div>
                                 </td>
@@ -4209,7 +4381,7 @@ export default function Home() {
                   </label>
                   <label>
                     <span>Key storage</span>
-                    <input name="storage" required defaultValue="Tool Aid Key Board" autoComplete="off" />
+                    <input name="storage" required defaultValue="Tool Crib Key Board" autoComplete="off" />
                   </label>
                   <label>
                     <span>Starting status</span>
@@ -4320,9 +4492,9 @@ export default function Home() {
         </div>
       )}
 
-      {printLoan && (
+      {printLoan && printLoans.length > 0 && (
         <BorrowingPrintModal
-          loan={printLoan}
+          loans={printLoans}
           releasedBy={DEFAULT_RELEASING_OFFICER}
           onClose={() => setPrintLoanId(null)}
         />
@@ -4344,53 +4516,52 @@ export default function Home() {
 }
 
 
-function UserPortal({
-  user,
-  role,
+function BorrowerPortal({
   tools,
   rooms,
   loans,
   onRequestTool,
   onRequestRoom,
-  onSignOut,
+  onAdminAccess,
   toast,
 }: {
-  user: Models.User<Models.Preferences>;
-  role: AccessRole;
   tools: Tool[];
   rooms: RoomKey[];
   loans: Loan[];
-  onRequestTool: (request: { assetId: string; unitNumber: number; days: number }) => void;
-  onRequestRoom: (request: { roomId: string; purpose: string }) => void;
-  onSignOut: () => void;
+  onRequestTool: (request: {
+    assetId: string;
+    unitNumber: number;
+    days: number;
+    student: string;
+    studentId: string;
+    program: string;
+    borrowerType: BorrowerType;
+    purpose: string;
+  }) => Promise<boolean>;
+  onRequestRoom: (request: {
+    roomId: string;
+    purpose: string;
+    student: string;
+    studentId: string;
+    program: string;
+    borrowerType: BorrowerType;
+  }) => Promise<boolean>;
+  onAdminAccess: () => void;
   toast: string;
 }) {
-  type UserView = "Home" | "Inventory" | "Rooms & Keys" | "My Activity";
-  const userViews: UserView[] = ["Home", "Inventory", "Rooms & Keys", "My Activity"];
-  const [view, setView] = useState<UserView>("Home");
+  type BorrowerView = "Home" | "Inventory" | "Rooms & Keys" | "Active";
+  const borrowerViews: BorrowerView[] = ["Home", "Inventory", "Rooms & Keys", "Active"];
+  const [view, setView] = useState<BorrowerView>("Home");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<ToolCategory>("All Tools");
   const [toolRequest, setToolRequest] = useState<{ tool: Tool; unitNumber: number } | null>(null);
   const [roomRequest, setRoomRequest] = useState<RoomKey | null>(null);
   const [printLoan, setPrintLoan] = useState<Loan | null>(null);
-  const prefs = accountPrefsOf(user);
-  const userId = String(prefs.studentId ?? "").trim();
-  const userProgram = String(prefs.program ?? "Unspecified").trim();
-  const normalizedUserId = userId.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const myLoans = loans
-    .filter((loan) => loan.studentId.toUpperCase().replace(/[^A-Z0-9]/g, "") === normalizedUserId)
-    .sort((a, b) => {
-      const aDate = new Date(a.requestedAtIso ?? a.borrowedAtIso ?? a.id).getTime();
-      const bDate = new Date(b.requestedAtIso ?? b.borrowedAtIso ?? b.id).getTime();
-      return bDate - aDate;
-    });
-  const activeLoans = loans.filter((loan) => !["Returned", "Pending", "Declined"].includes(loan.status));
-  const myActive = myLoans.filter((loan) => !["Returned", "Pending", "Declined"].includes(loan.status));
-  const myPending = myLoans.filter((loan) => loan.status === "Pending");
-  const myOverdue = myLoans.filter((loan) => loan.status === "Overdue");
-  const myReturned = myLoans.filter((loan) => loan.status === "Returned");
-  const borrowingBlocked = myOverdue.length > 0;
+  const [requestBusy, setRequestBusy] = useState(false);
 
+  const normalizeId = (value: string) => value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const activeLoans = loans.filter((loan) => !["Returned", "Pending", "Declined"].includes(loan.status));
+  const pendingLoans = loans.filter((loan) => loan.status === "Pending");
   const toolQuantity = (tool: Tool) => Math.max(1, tool.quantity ?? 1);
   const existingUnits = (tool: Tool) => {
     const deleted = new Set(tool.deletedUnits ?? []);
@@ -4411,6 +4582,9 @@ function UserPortal({
     const occupied = occupiedUnits(tool);
     return existingUnits(tool).filter((unit) => !maintenance.has(unit) && !occupied.has(unit));
   };
+  const readyToolUnits = tools.reduce((sum, tool) => sum + availableUnits(tool).length, 0);
+  const availableRooms = rooms.filter((room) => room.status === "Available").length;
+
   const q = query.trim().toLowerCase();
   const visibleTools = tools.filter((tool) => {
     const categoryMatch = category === "All Tools" || tool.category === category;
@@ -4420,54 +4594,110 @@ function UserPortal({
   const visibleRooms = rooms.filter(
     (room) => !q || `${room.id} ${room.room} ${room.use}`.toLowerCase().includes(q),
   );
-  const pageTitle = view === "Home" ? `Welcome, ${user.name || "COAC user"}` : view;
 
-  const submitToolRequest = (event: FormEvent<HTMLFormElement>) => {
+  const publicActiveLoans = loans
+    .filter((loan) => !["Returned", "Declined"].includes(loan.status))
+    .sort((a, b) => {
+      const aDate = new Date(a.requestedAtIso ?? a.borrowedAtIso ?? a.id).getTime();
+      const bDate = new Date(b.requestedAtIso ?? b.borrowedAtIso ?? b.id).getTime();
+      return bDate - aDate;
+    });
+  const pageTitle = view === "Home" ? "Tool Crib" : view;
+
+  const submitToolRequest = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!toolRequest || borrowingBlocked) return;
+    if (!toolRequest || requestBusy) return;
     const form = new FormData(event.currentTarget);
-    onRequestTool({
+    const studentId = String(form.get("studentId") ?? "").trim();
+    setRequestBusy(true);
+    const ok = await onRequestTool({
       assetId: toolRequest.tool.id,
       unitNumber: toolRequest.unitNumber,
       days: Math.max(1, Number(form.get("days")) || 7),
+      student: String(form.get("student") ?? ""),
+      studentId,
+      program: String(form.get("program") ?? ""),
+      borrowerType: String(form.get("borrowerType") ?? "Student") as BorrowerType,
+      purpose: String(form.get("purpose") ?? ""),
     });
-    setToolRequest(null);
+    setRequestBusy(false);
+    if (ok) {
+      setToolRequest(null);
+      setView("Active");
+    }
   };
 
-  const submitRoomRequest = (event: FormEvent<HTMLFormElement>) => {
+  const submitRoomRequest = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!roomRequest || borrowingBlocked) return;
+    if (!roomRequest || requestBusy) return;
     const form = new FormData(event.currentTarget);
-    onRequestRoom({ roomId: roomRequest.id, purpose: String(form.get("purpose") ?? "") });
-    setRoomRequest(null);
+    const studentId = String(form.get("studentId") ?? "").trim();
+    setRequestBusy(true);
+    const ok = await onRequestRoom({
+      roomId: roomRequest.id,
+      purpose: String(form.get("purpose") ?? ""),
+      student: String(form.get("student") ?? ""),
+      studentId,
+      program: String(form.get("program") ?? ""),
+      borrowerType: String(form.get("borrowerType") ?? "Student") as BorrowerType,
+    });
+    setRequestBusy(false);
+    if (ok) {
+      setRoomRequest(null);
+      setView("Active");
+    }
   };
+
+  const borrowerFields = (
+    <div className="borrower-request-fields">
+      <label>
+        <span>Full name</span>
+        <input name="student" autoComplete="name" placeholder="Juan Dela Cruz" required />
+      </label>
+      <label>
+        <span>TUPV / Faculty ID</span>
+        <input name="studentId" placeholder="TUPV-00-0000" required />
+      </label>
+      <label>
+        <span>Borrower type</span>
+        <select name="borrowerType" defaultValue="Student">
+          <option value="Student">Student</option>
+          <option value="Professor">Professor</option>
+        </select>
+      </label>
+      <label>
+        <span>Program, year & section</span>
+        <input name="program" placeholder="BETMxT 3A / COAC Faculty" required />
+      </label>
+    </div>
+  );
 
   return (
-    <div className="user-portal user-portal-rich">
-      <header className="topbar user-rich-topbar">
-        <button className="brand user-rich-brand" type="button" onClick={() => setView("Home")}>
+    <div className="user-portal user-portal-rich borrower-portal">
+      <header className="topbar user-rich-topbar borrower-topbar">
+        <button className="brand user-rich-brand" type="button" onClick={() => setView("Home")}> 
           <img src="/coac-logo.png" alt="COAC logo" />
           <span>
-            <strong>COAC Tool Aid</strong>
-            <small>{role === "professor" ? "Professor Portal" : "Student Portal"} · College of Automation and Control</small>
+            <strong>Tool Crib</strong>
+            <small>Borrower Portal · College of Automation and Control</small>
           </span>
         </button>
 
-        <nav className="top-nav user-rich-nav" aria-label="User portal">
+        <nav className="top-nav user-rich-nav borrower-nav" aria-label="Borrower portal">
           <span
-            className="top-nav-slider"
+            className="top-nav-slider borrower-nav-slider"
             aria-hidden="true"
-            style={{ transform: `translateX(${userViews.indexOf(view) * 100}%)` }}
+            style={{ transform: `translateX(${borrowerViews.indexOf(view) * 100}%)` }}
           />
-          {userViews.map((entry) => (
+          {borrowerViews.map((entry) => (
             <button key={entry} className={view === entry ? "active" : ""} onClick={() => setView(entry)}>
-              {entry}
+              {entry === "Home" ? "Tool Crib" : entry === "Active" ? "Active Borrowing" : entry}
             </button>
           ))}
         </nav>
 
-        <div className="actions user-rich-actions">
-          {view !== "Home" && (
+        <div className="actions user-rich-actions borrower-topbar-actions">
+          {view !== "Home" && view !== "Active" && (
             <label className="search user-rich-search">
               <span>⌕</span>
               <input
@@ -4478,279 +4708,139 @@ function UserPortal({
               {query && <button type="button" onClick={() => setQuery("")}>×</button>}
             </label>
           )}
-          <button className="cloud-account user-cloud-account" type="button" onClick={onSignOut} title="Sign out">
-            <span className="avatar">{(user.name || user.email).slice(0, 2).toUpperCase()}</span>
-            <span>
-              <strong>{user.name || user.email}</strong>
-              <small>{role === "professor" ? "Professor" : "Student"} · {userId || "ID not set"}</small>
-            </span>
-          </button>
+          <button className="borrower-admin-link" type="button" onClick={onAdminAccess}>Admin sign in</button>
         </div>
       </header>
 
-      <div className="mobile-nav user-rich-mobile-nav">
-        {userViews.map((entry) => (
-          <button key={entry} className={view === entry ? "active" : ""} onClick={() => setView(entry)}>
-            {entry}
-          </button>
+      <div className="mobile-nav user-rich-mobile-nav borrower-mobile-nav">
+        {borrowerViews.map((entry) => (
+          <button key={entry} className={view === entry ? "active" : ""} onClick={() => setView(entry)}>{entry === "Home" ? "Tool Crib" : entry === "Active" ? "Active" : entry}</button>
         ))}
       </div>
 
       <main className={`user-main ${view === "Home" ? "user-main-home" : "user-main-workspace"}`}>
         {view !== "Home" && (
-          <section className="workspace-head user-workspace-head">
+          <section className="workspace-head user-workspace-head borrower-workspace-head">
             <div>
-              <span className="eyebrow">COAC {role === "professor" ? "PROFESSOR" : "STUDENT"} ACCESS</span>
-              <h1>{pageTitle}</h1>
+              <span className="eyebrow">COAC TOOL AID</span>
+              <h1>{view === "Active" ? "Active Borrowing" : pageTitle}</h1>
               <p>
                 {view === "Inventory"
-                  ? "Browse the same COAC inventory catalog used by Tool Aid, with administrative controls safely locked."
+                  ? "Choose an available tool or exact numbered unit and submit the borrower's details."
                   : view === "Rooms & Keys"
-                    ? "Check live room-key availability and submit a release request without exposing another borrower's private information."
-                    : "Review your requests, active loans, return evaluations, and official printable borrowing forms."}
+                    ? "Check room-key availability and submit a borrowing request."
+                    : "Active and pending borrowing records for all COAC students and faculty. Personal borrower details remain visible only to administrators."}
               </p>
             </div>
-            <div className="user-workspace-identity">
-              <span>{role === "professor" ? "PROFESSOR ACCOUNT" : "STUDENT ACCOUNT"}</span>
-              <strong>{user.name || user.email}</strong>
-              <small>{userProgram} · {userId || "ID not set"}</small>
-            </div>
-          </section>
-        )}
-
-        {borrowingBlocked && view !== "Home" && (
-          <section className="user-restriction-banner">
-            <div>
-              <strong>New borrowing requests are temporarily restricted</strong>
-              <p>Return your overdue item before requesting another tool or room key.</p>
-            </div>
-            <b>{myOverdue.length} overdue</b>
           </section>
         )}
 
         {view === "Home" && (
           <>
-            <section className="hero user-rich-hero">
-              <div className="gridlines" />
-              <div className="gear">⚙</div>
-              <span className="hero-luntian-side left" aria-hidden="true">POWERED BY LUNTIAN</span>
-              <span className="hero-luntian-side right" aria-hidden="true">POWERED BY LUNTIAN</span>
-              <HeroClock />
-              <div className="hero-shell">
-                <div className="hero-copy">
-                  <span className="eyebrow">COAC {role === "professor" ? "PROFESSOR" : "STUDENT"} PORTAL</span>
-                  <h1>
-                    Borrow with clarity.
-                    <br />
-                    Build with accountability.
-                  </h1>
-                  <p>
-                    Welcome back, {user.name || "COAC user"}. Browse the same live Tool Aid inventory, request exact units or room keys,
-                    and keep your complete COAC borrowing record in one place.
-                  </p>
-                  <div className="hero-actions">
-                    <button className="primary" type="button" onClick={() => setView("Inventory")}>
-                      Request equipment <b>→</b>
-                    </button>
-                    <button className="hero-secondary" type="button" onClick={() => setView("Rooms & Keys")}>
-                      Check rooms &amp; keys
-                    </button>
-                  </div>
-                  <div className="user-hero-account-line">
-                    <span><b>{userProgram}</b><small>Program / section</small></span>
-                    <span><b>{userId || "Not set"}</b><small>TUPV ID</small></span>
-                    <span><b>{role === "professor" ? "Professor" : "Student"}</b><small>Access level</small></span>
-                  </div>
+            <section className="borrower-tool-aid-home">
+              <div className="borrower-tool-aid-title">
+                <img src="/coac-logo.png" alt="COAC logo" />
+                <div>
+                  <span>COLLEGE OF AUTOMATION AND CONTROL</span>
+                  <h1>Tool Crib</h1>
+                  <p>Borrow equipment and room keys.</p>
                 </div>
-
-                <aside className="hero-course-showcase user-course-showcase" aria-label="COAC programs">
-                  <div className="hero-course-showcase-head">
-                    <span className="hero-course-kicker">YOUR COAC HOME</span>
-                    <strong>One portal for tools, rooms, and records</strong>
-                    <small>Your access stays personal while the visual experience matches the full Tool Aid system.</small>
-                  </div>
-                  <div className="hero-course-grid">
-                    <article className="hero-course-card bsice">
-                      <div className="hero-course-logo-wrap"><img src="/course-logos/bsice-logo.png" alt="BSICE logo" className="hero-course-logo" /></div>
-                      <div className="hero-course-meta"><strong>BSICE</strong><span>Instrumentation and Control Engineering</span></div>
-                    </article>
-                    <article className="hero-course-card bsmxe">
-                      <div className="hero-course-logo-wrap"><img src="/course-logos/bsmxe-logo.png" alt="BSMxE logo" className="hero-course-logo" /></div>
-                      <div className="hero-course-meta"><strong>BSMxE</strong><span>Mechatronics Engineering</span></div>
-                    </article>
-                    <article className="hero-course-card betmxt">
-                      <div className="hero-course-logo-wrap"><img src="/course-logos/betmxt-logo.png" alt="BETMxT logo" className="hero-course-logo" /></div>
-                      <div className="hero-course-meta"><strong>BETMxT</strong><span>Mechatronics Technology</span></div>
-                    </article>
-                  </div>
-                </aside>
               </div>
+              <div className="borrower-tool-aid-actions">
+                <button className="primary" type="button" onClick={() => setView("Inventory")}>Browse equipment →</button>
+                <button className="secondary" type="button" onClick={() => setView("Rooms & Keys")}>Rooms &amp; keys</button>
+                <button className="secondary" type="button" onClick={() => setView("Active")}>Active borrowing</button>
+              </div>
+              <HeroClock />
             </section>
 
-            <section className="content dashboard-content user-home-dashboard">
-              {borrowingBlocked && (
-                <section className="user-restriction-banner user-restriction-rich">
-                  <div>
-                    <strong>New borrowing requests are temporarily restricted</strong>
-                    <p>Return your overdue item before requesting another tool or room key.</p>
-                  </div>
-                  <b>{myOverdue.length} overdue</b>
-                </section>
-              )}
-
-              <section className="dashboard-zone user-dashboard-zone">
+            <section className="dashboard user-home-dashboard borrower-home-dashboard">
+              <section className="dashboard-zone user-dashboard-zone borrower-dashboard-zone">
                 <div className="dashboard-zone-head">
-                  <div className="dashboard-zone-title">
-                    <span className="dashboard-zone-icon tool-icon" aria-hidden="true">◎</span>
-                    <div>
-                      <span className="dashboard-zone-kicker">MY COAC ACTIVITY</span>
-                      <h2>Personal borrowing overview</h2>
-                      <p>Only activity connected to your account is shown here.</p>
-                    </div>
-                  </div>
-                  <button className="dashboard-zone-link" type="button" onClick={() => setView("My Activity")}>Open my records →</button>
+                  <div><span className="eyebrow">LIVE TOOL AID</span><h2>Availability</h2><p>Equipment and room-key status for all COAC borrowers.</p></div>
+                  <button className="dashboard-zone-link" type="button" onClick={() => setView("Active")}>View active →</button>
                 </div>
-
-                <div className="stats tool-stats user-rich-stats">
-                  <Stat tone="orange" icon="↗" value={String(myActive.length)} label="My Active Loans" foot="Currently released to you" click={() => setView("My Activity")} />
-                  <Stat tone="blue" icon="◷" value={String(myPending.length)} label="Pending Requests" foot="Waiting for Tool Aid approval" click={() => setView("My Activity")} />
-                  <Stat tone="red" icon="!" value={String(myOverdue.length)} label="Overdue Items" foot="Return required before new requests" click={() => setView("My Activity")} />
-                  <Stat tone="green" icon="✓" value={String(myReturned.length)} label="Completed Returns" foot="Recorded in your history" click={() => setView("My Activity")} />
-                </div>
-
-                <div className="dashboard-operations-grid user-home-panels">
-                  <section className="panel user-rich-activity-panel">
+                <div className="borrower-home-overview-grid">
+                  <article className="panel borrower-home-stats-card">
                     <div className="panel-head">
-                      <div><strong>Current activity</strong><small>Your newest requests and active releases</small></div>
-                      <button type="button" onClick={() => setView("My Activity")}>View all →</button>
+                      <div><strong>Tool Crib status</strong><small>Live borrowing availability</small></div>
                     </div>
-                    <div className="user-rich-activity-list">
-                      {myLoans.slice(0, 5).map((loan) => (
-                        <button type="button" key={loan.id} onClick={() => setView("My Activity")}>
-                          <span className={`user-rich-activity-icon ${kindOf(loan) === "Room Key" ? "room" : "tool"}`}>{kindOf(loan) === "Room Key" ? "⌂" : "▣"}</span>
-                          <span className="user-rich-activity-copy">
-                            <strong>{loan.item}</strong>
-                            <small>{assetLabelOf(loan)} · {loan.status === "Pending" ? `Requested ${loan.requestedAt ?? "recently"}` : `Borrowed ${loan.borrowed}`}</small>
-                          </span>
-                          <Status value={loan.status} />
-                        </button>
-                      ))}
-                      {myLoans.length === 0 && (
-                        <div className="user-rich-empty-state">
-                          <span>▣</span>
-                          <strong>No borrowing activity yet</strong>
-                          <small>Your first approved request will appear here automatically.</small>
-                        </div>
-                      )}
+                    <div className="stats user-rich-stats borrower-stats">
+                      <Stat tone="blue" icon="▣" value={String(readyToolUnits)} label="Tool Units Ready" foot="Available" click={() => setView("Inventory")} />
+                      <Stat tone="green" icon="⌂" value={String(availableRooms)} label="Rooms & Keys" foot="Available" click={() => setView("Rooms & Keys")} />
+                      <Stat tone="orange" icon="◷" value={String(pendingLoans.length)} label="Pending" foot="For approval" click={() => setView("Active")} />
+                      <Stat tone="purple" icon="●" value={String(activeLoans.length)} label="Active" foot="Released" click={() => setView("Active")} />
                     </div>
-                  </section>
+                  </article>
 
-                  <section className="panel user-ready-panel">
+                  <article className="panel dashboard-room-display user-room-display borrower-room-display">
                     <div className="panel-head">
-                      <div><strong>Available now</strong><small>Live COAC resources ready for requests</small></div>
-                      <span className="live-indicator"><i /> Live</span>
+                      <div><strong>Live rooms &amp; keys</strong><small>Green available · red key out · orange maintenance</small></div>
+                      <button type="button" onClick={() => setView("Rooms & Keys")}>View all →</button>
                     </div>
-                    <div className="user-ready-metrics">
-                      <button type="button" onClick={() => setView("Inventory")}>
-                        <span className="user-ready-icon tool">▣</span>
-                        <span><strong>{tools.reduce((sum, tool) => sum + availableUnits(tool).length, 0)}</strong><small>tool units ready</small></span>
-                        <b>→</b>
-                      </button>
-                      <button type="button" onClick={() => setView("Rooms & Keys")}>
-                        <span className="user-ready-icon room">⌂</span>
-                        <span><strong>{rooms.filter((room) => room.status === "Available").length}</strong><small>room keys available</small></span>
-                        <b>→</b>
-                      </button>
-                      <button type="button" onClick={() => setView("My Activity")}>
-                        <span className="user-ready-icon record">≡</span>
-                        <span><strong>{myLoans.length}</strong><small>personal records</small></span>
-                        <b>→</b>
-                      </button>
-                    </div>
-                  </section>
-
-                  <section className="panel user-account-panel">
-                    <div className="panel-head">
-                      <div><strong>My COAC access</strong><small>Identity used on every borrowing request</small></div>
-                      <span className="user-account-verified">✓ VERIFIED</span>
-                    </div>
-                    <div className="user-account-profile">
-                      <span className="user-account-avatar">{(user.name || user.email).slice(0, 2).toUpperCase()}</span>
-                      <div><strong>{user.name || user.email}</strong><small>{user.email}</small></div>
-                    </div>
-                    <div className="user-account-details">
-                      <span><small>TUPV ID</small><strong>{userId || "Not set"}</strong></span>
-                      <span><small>Program / section</small><strong>{userProgram}</strong></span>
-                      <span><small>Account type</small><strong>{role === "professor" ? "Professor" : "Student"}</strong></span>
-                    </div>
-                    <p className="user-account-note">Borrower details are locked to this account when you submit a request. Tool Aid approval is still required before physical release.</p>
-                  </section>
-                </div>
-
-                <section className="panel dashboard-room-display user-room-display">
-                  <div className="panel-head">
-                    <div><strong>Live room display</strong><small>Availability only. Other borrowers remain private.</small></div>
-                    <button type="button" onClick={() => setView("Rooms & Keys")}>Open rooms &amp; keys →</button>
-                  </div>
-                  <div className="room-display-grid">
-                    {rooms.map((room) => {
-                      const isAvailable = room.status === "Available";
-                      return (
+                    <div className="room-display-grid">
+                      {rooms.map((room) => (
                         <button
                           type="button"
                           key={room.id}
-                          className={`room-display-tile ${isAvailable ? "available" : "unavailable"}`}
+                          className={`room-display-tile ${room.status === "Available" ? "available" : room.status === "Borrowed" ? "borrowed" : "maintenance"}`}
                           onClick={() => setView("Rooms & Keys")}
                         >
-                          <i aria-hidden="true" />
+                          <i />
                           <strong>{room.room}</strong>
-                          <span>{isAvailable ? "Available" : room.status === "Maintenance" ? "Maintenance" : "Unavailable"}</span>
+                          <span>{room.status === "Available" ? "Available" : room.status === "Borrowed" ? "Key out" : "Maintenance"}</span>
                         </button>
-                      );
-                    })}
-                  </div>
-                </section>
+                      ))}
+                    </div>
+                  </article>
+                </div>
               </section>
             </section>
           </>
         )}
 
         {view === "Inventory" && (
-          <section className="user-panel">
+          <section className="user-panel borrower-catalog-panel">
             <div className="user-panel-head">
-              <div><strong>Equipment catalog</strong><small>Only available numbered units can be requested</small></div>
+              <div><strong>Equipment catalog</strong><small>Request the exact numbered unit you need</small></div>
               <span>{visibleTools.length} tools</span>
             </div>
-            <div className="user-category-tabs">
+            <div className="user-category-tabs borrower-category-tabs">
               {toolCategories.map((entry) => (
                 <button key={entry} className={category === entry ? "active" : ""} onClick={() => setCategory(entry)}>
                   <span><ToolCategoryIcon category={entry} /></span>{entry}
                 </button>
               ))}
             </div>
-            <div className="user-tool-grid">
+            <div className="user-tool-grid borrower-tool-grid">
               {visibleTools.map((tool) => {
                 const readyUnits = availableUnits(tool);
-                const total = existingUnits(tool).length;
+                const occupied = occupiedUnits(tool);
+                const maintenance = maintenanceUnits(tool);
                 return (
                   <article key={tool.id}>
-                    <header><span className="mono">{tool.id}</span><Status value={readyUnits.length ? "Available" : tool.status === "Maintenance" ? "Maintenance" : "Borrowed"} /></header>
+                    <header><span className="mono">{tool.id}</span><Status value={readyUnits.length ? "Available" : maintenance.size ? "Maintenance" : "Borrowed"} /></header>
                     <h3>{tool.name}</h3>
                     <p>{tool.category} · {tool.location}</p>
-                    <div className="user-unit-summary"><strong>{readyUnits.length}</strong><span>of {total} units ready</span></div>
-                    <div className="user-unit-buttons">
+                    <div className="user-unit-summary borrower-unit-summary">
+                      <strong>Units</strong>
+                      <span>{readyUnits.length} available · {occupied.size} borrowed{maintenance.size ? ` · ${maintenance.size} maintenance` : ""}</span>
+                    </div>
+                    <div className="user-unit-buttons borrower-unit-buttons">
                       {existingUnits(tool).map((unit) => {
-                        const ready = readyUnits.includes(unit);
-                        const pending = myPending.some((loan) => loan.assetId === tool.id && unitNumberOf(loan) === unit);
+                        const state = maintenance.has(unit) ? "maintenance" : occupied.has(unit) ? "borrowed" : "available";
+                        const ready = state === "available";
                         return (
                           <button
                             type="button"
                             key={unit}
-                            disabled={!ready || pending || borrowingBlocked}
-                            className={pending ? "pending" : ""}
+                            className={`borrower-unit-button ${state}`}
+                            disabled={!ready}
                             onClick={() => setToolRequest({ tool, unitNumber: unit })}
+                            aria-label={`${tool.name} unit ${unit}: ${state}`}
                           >
-                            <b>{unit}</b><span>{pending ? "Requested" : ready ? "Request" : "Unavailable"}</span>
+                            <b>Unit {unit}</b>
+                            <span>{state === "available" ? "Available" : state === "borrowed" ? "Borrowed" : "Maintenance"}</span>
                           </button>
                         );
                       })}
@@ -4764,62 +4854,106 @@ function UserPortal({
         )}
 
         {view === "Rooms & Keys" && (
-          <section className="user-panel">
+          <section className="user-panel borrower-rooms-panel">
             <div className="user-panel-head">
-              <div><strong>Room & key availability</strong><small>Other borrowers' names and IDs stay private</small></div>
-              <span>{rooms.filter((room) => room.status === "Available").length} available</span>
+              <div><strong>Room & key availability</strong><small>Green means available. Red means the key is borrowed. Borrower identities stay private.</small></div>
+              <span>{availableRooms} available</span>
             </div>
-            <div className="user-room-grid">
-              {visibleRooms.map((room) => {
-                const pending = myPending.some((loan) => kindOf(loan) === "Room Key" && loan.assetId === room.id);
-                return (
-                  <article key={room.id} className={room.status.toLowerCase()}>
-                    <div className="user-room-state"><i /><strong>{room.status === "Available" ? "AVAILABLE" : room.status === "Borrowed" ? "KEY OUT" : "MAINTENANCE"}</strong></div>
-                    <span className="mono">{room.id}</span>
-                    <h3>{room.room}</h3>
-                    <p>{room.use}</p>
-                    <small>{room.status === "Available" ? "Key is ready at Tool Aid." : room.status === "Borrowed" ? "Key is currently unavailable." : "Room/key is temporarily unavailable."}</small>
-                    <button type="button" disabled={room.status !== "Available" || pending || borrowingBlocked} onClick={() => setRoomRequest(room)}>
-                      {pending ? "Request pending" : room.status === "Available" ? "Request room key →" : "Unavailable"}
+
+            <div className="borrower-rooms-layout">
+              <div className="user-room-grid borrower-room-grid">
+                {visibleRooms.map((room) => (
+                  <article id={`borrow-room-${room.id}`} key={room.id} className={`borrower-room-card ${room.status.toLowerCase()}`}>
+                    <div className="user-room-state borrower-room-card-state">
+                      <i />
+                      <strong>{room.status === "Available" ? "AVAILABLE" : room.status === "Borrowed" ? "KEY OUT" : "MAINTENANCE"}</strong>
+                    </div>
+                    <div className="borrower-room-card-title">
+                      <div>
+                        <span>ROOM</span>
+                        <h3>{room.room}</h3>
+                        <p>{room.use}</p>
+                      </div>
+                      <span className={`borrower-key-mark ${room.status.toLowerCase()}`} aria-hidden="true">⌂</span>
+                    </div>
+                    <div className="borrower-room-card-details">
+                      <span><small>Key ID</small><strong className="mono">{room.id}</strong></span>
+                      <span><small>Key storage</small><strong>{room.storage || "Tool Crib"}</strong></span>
+                    </div>
+                    <div className="borrower-room-card-message">
+                      <strong>{room.status === "Available" ? "Ready for borrowing" : room.status === "Borrowed" ? "Key currently out" : "Temporarily unavailable"}</strong>
+                      <small>{room.status === "Available" ? "Key is ready at the Tool Crib." : room.status === "Borrowed" ? "The key is currently borrowed." : "Room or assigned key is under maintenance."}</small>
+                    </div>
+                    <button type="button" disabled={room.status !== "Available"} onClick={() => setRoomRequest(room)}>
+                      {room.status === "Available" ? "Request room & key →" : room.status === "Borrowed" ? "Key borrowed" : "Maintenance"}
                     </button>
                   </article>
-                );
-              })}
-              {visibleRooms.length === 0 && <div className="user-empty">No rooms match your search.</div>}
+                ))}
+                {visibleRooms.length === 0 && <div className="user-empty">No rooms match your search.</div>}
+              </div>
+
+              <aside className="room-mini-map borrower-room-sidebar" aria-label="Room and key status">
+                <div className="room-mini-map-head">
+                  <div><span className="dashboard-zone-kicker">LIVE ROOM MAP</span><strong>Rooms &amp; keys</strong></div>
+                  <span className="room-mini-live"><i /> Live</span>
+                </div>
+                <div className="room-mini-summary">
+                  <span><b>{availableRooms}</b> available</span>
+                  <span><b>{rooms.length - availableRooms}</b> unavailable</span>
+                </div>
+                <div className="room-mini-grid">
+                  {visibleRooms.map((room) => {
+                    const roomState = room.status === "Available" ? "available" : room.status === "Borrowed" ? "occupied" : "maintenance";
+                    return (
+                      <button
+                        type="button"
+                        className={`room-mini-tile ${roomState}`}
+                        key={room.id}
+                        onClick={() => document.getElementById(`borrow-room-${room.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                      >
+                        <i aria-hidden="true" />
+                        <strong>{room.room}</strong>
+                        <small>{roomState === "available" ? "Available" : roomState === "occupied" ? "Key out" : "Maintenance"}</small>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="room-mini-legend">
+                  <span><i className="available" /> Available</span>
+                  <span><i className="occupied" /> Borrowed</span>
+                  <span><i className="maintenance" /> Maintenance</span>
+                </div>
+              </aside>
             </div>
           </section>
         )}
 
-        {view === "My Activity" && (
-          <section className="user-panel">
+        {view === "Active" && (
+          <section className="user-panel borrower-active-panel">
             <div className="user-panel-head">
-              <div><strong>My borrowing activity</strong><small>Only records tied to {userId || "your account"}</small></div>
-              <span>{myLoans.length} records</span>
+              <div><strong>Active borrowing</strong><small>Current requests and released items for all COAC students and faculty</small></div>
+              <span>{publicActiveLoans.length} active</span>
             </div>
-            <div className="table-scroll user-activity-table-wrap">
+            <div className="borrower-active-note">
+              <span>ALL COAC BORROWERS</span>
+              <strong>Active and pending borrowing</strong>
+              <small>Students can see availability and status. Names, IDs and full borrower records stay in the admin dashboard.</small>
+            </div>
+            <div className="table-scroll user-activity-table-wrap borrower-activity-table-wrap">
               <table className="user-activity-table">
-                <thead><tr><th>Type</th><th>Item / Asset</th><th>Requested / Borrowed</th><th>Due</th><th>Status</th><th>Return evaluation</th><th>Form</th></tr></thead>
+                <thead><tr><th>Type</th><th>Item / Asset</th><th>Requested / Borrowed</th><th>Due</th><th>Status</th></tr></thead>
                 <tbody>
-                  {myLoans.map((loan) => (
+                  {publicActiveLoans.length === 0 ? (
+                    <tr><td colSpan={5}><div className="borrower-active-empty">No active borrowings or pending requests.</div></td></tr>
+                  ) : publicActiveLoans.map((loan) => (
                     <tr key={loan.id}>
                       <td><span className={`kind-tag ${kindOf(loan) === "Room Key" ? "room" : "tool"}`}>{kindOf(loan)}</span></td>
-                      <td><strong>{loan.item}</strong><small className="mono">{assetLabelOf(loan)}</small>{loan.purpose && <small>{loan.purpose}</small>}</td>
+                      <td><strong>{loan.item}</strong><small className="mono">{assetLabelOf(loan)}</small></td>
                       <td><strong>{loan.status === "Pending" ? loan.requestedAt ?? "Pending" : loan.borrowed}</strong>{loan.requestedAt && loan.status !== "Pending" && <small>Requested {loan.requestedAt}</small>}</td>
                       <td>{kindOf(loan) === "Room Key" ? "—" : loan.due}</td>
                       <td><Status value={loan.status} /></td>
-                      <td>
-                        {loan.status === "Returned" ? (
-                          <span className="user-return-note"><strong>{loan.returnCondition ?? "Returned"}</strong><small>{loan.returnedAt}</small>{loan.returnRemarks && <small>{loan.returnRemarks}</small>}</span>
-                        ) : <span className="muted">{loan.status === "Declined" ? "Request declined" : "Not returned yet"}</span>}
-                      </td>
-                      <td>
-                        {!(["Pending", "Declined"].includes(loan.status)) ? (
-                          <button type="button" className="user-print-button" onClick={() => setPrintLoan(loan)}>Print form</button>
-                        ) : <span className="muted">—</span>}
-                      </td>
                     </tr>
                   ))}
-                  {myLoans.length === 0 && <tr><td colSpan={7} className="transactions-empty">No personal borrowing records yet.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -4828,63 +4962,80 @@ function UserPortal({
       </main>
 
       {toolRequest && (
-        <div className="backdrop" onMouseDown={() => setToolRequest(null)}>
-          <section className="modal user-request-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="modal-head"><div><span className="eyebrow">TOOL REQUEST</span><h2>Request {toolRequest.tool.name} {toolRequest.unitNumber}</h2><p>Tool Aid must approve and physically release the item before it becomes borrowed.</p></div><button onClick={() => setToolRequest(null)}>×</button></div>
+        <div className="backdrop" onMouseDown={() => !requestBusy && setToolRequest(null)}>
+          <section className="modal user-request-modal borrower-request-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="modal-head"><div><span className="eyebrow">EQUIPMENT REQUEST</span><h2>Request {toolRequest.tool.name} {toolRequest.unitNumber}</h2><p>Enter the actual borrower information for this request. Tool Crib staff approve and physically release the item.</p></div><button disabled={requestBusy} onClick={() => setToolRequest(null)}>×</button></div>
             <form onSubmit={submitToolRequest}>
               <div className="user-request-summary"><span className="mono">{toolRequest.tool.id}-{toolRequest.unitNumber}</span><strong>{toolRequest.tool.name} {toolRequest.unitNumber}</strong><small>{toolRequest.tool.category} · {toolRequest.tool.location}</small></div>
-              <label><span>Requested borrowing period</span><select name="days" defaultValue="7"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option></select></label>
-              <div className="user-identity-lock"><strong>Borrower identity locked to your account</strong><span>{user.name} · {userId} · {userProgram}</span></div>
-              <footer><button type="button" className="secondary" onClick={() => setToolRequest(null)}>Cancel</button><button className="primary">Send request →</button></footer>
+              {borrowerFields}
+              <div className="borrower-request-extra">
+                <label><span>Borrowing period</span><select name="days" defaultValue="7"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option></select></label>
+                <label><span>Purpose</span><input name="purpose" placeholder="Laboratory activity, project testing..." required /></label>
+              </div>
+              <div className="user-identity-lock borrower-request-note"><strong>Borrower record</strong><span>The name and TUPV/faculty ID entered above are attached to this request for admin approval and monitoring.</span></div>
+              <footer><button type="button" className="secondary" disabled={requestBusy} onClick={() => setToolRequest(null)}>Cancel</button><button className="primary" disabled={requestBusy}>{requestBusy ? "Sending..." : "Send request →"}</button></footer>
             </form>
           </section>
         </div>
       )}
 
       {roomRequest && (
-        <div className="backdrop" onMouseDown={() => setRoomRequest(null)}>
-          <section className="modal user-request-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="modal-head"><div><span className="eyebrow">ROOM KEY REQUEST</span><h2>Request {roomRequest.room}</h2><p>Tool Aid approves the request before the key is released.</p></div><button onClick={() => setRoomRequest(null)}>×</button></div>
+        <div className="backdrop" onMouseDown={() => !requestBusy && setRoomRequest(null)}>
+          <section className="modal user-request-modal borrower-request-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="modal-head"><div><span className="eyebrow">ROOM KEY REQUEST</span><h2>Request {roomRequest.room}</h2><p>Enter the actual borrower information. Tool Crib staff approve the request before the key is released.</p></div><button disabled={requestBusy} onClick={() => setRoomRequest(null)}>×</button></div>
             <form onSubmit={submitRoomRequest}>
               <div className="user-request-summary"><span className="mono">{roomRequest.id}</span><strong>{roomRequest.room}</strong><small>{roomRequest.use}</small></div>
+              {borrowerFields}
               <label><span>Purpose of room use</span><textarea name="purpose" required placeholder="Laboratory activity, project testing, organization meeting..." /></label>
-              <div className="user-identity-lock"><strong>Borrower identity locked to your account</strong><span>{user.name} · {userId} · {userProgram}</span></div>
-              <footer><button type="button" className="secondary" onClick={() => setRoomRequest(null)}>Cancel</button><button className="primary">Send room request →</button></footer>
+              <div className="user-identity-lock borrower-request-note"><strong>Borrower record</strong><span>The request is recorded under the entered TUPV/faculty ID and appears in the admin monitoring view.</span></div>
+              <footer><button type="button" className="secondary" disabled={requestBusy} onClick={() => setRoomRequest(null)}>Cancel</button><button className="primary" disabled={requestBusy}>{requestBusy ? "Sending..." : "Send room request →"}</button></footer>
             </form>
           </section>
         </div>
       )}
 
-      {printLoan && <BorrowingPrintModal loan={printLoan} releasedBy={DEFAULT_RELEASING_OFFICER} onClose={() => setPrintLoan(null)} />}
+      {printLoan && <BorrowingPrintModal loans={[printLoan]} releasedBy={DEFAULT_RELEASING_OFFICER} onClose={() => setPrintLoan(null)} />}
       {toast && <div className="toast user-toast"><b>✓</b>{toast}</div>}
       <div className="user-luntian-credit"><span>Powered by</span><strong>Luntian</strong></div>
     </div>
   );
 }
 
+
 function BorrowingPrintModal({
-  loan,
+  loans,
   releasedBy,
   onClose,
 }: {
-  loan: Loan;
+  loans: Loan[];
   releasedBy: string;
   onClose: () => void;
 }) {
-  const [mode, setMode] = useState<PrintFormMode>(loan.status === "Returned" ? "complete" : "release");
-  const returned = loan.status === "Returned";
-  const transactionNo = transactionNumberOf(loan);
-  const typeLabel = kindOf(loan) === "Room Key" ? "Room Key" : "Equipment";
+  const primaryLoan = loans[0];
+  const allReturned = loans.length > 0 && loans.every((loan) => loan.status === "Returned");
+  const [mode, setMode] = useState<PrintFormMode>(allReturned ? "complete" : "release");
+  if (!primaryLoan) return null;
+
+  const transactionNo = borrowingBatchNumberOf(loans);
+  const hasTools = loans.some((loan) => kindOf(loan) === "Tool");
+  const hasRoomKeys = loans.some((loan) => kindOf(loan) === "Room Key");
+  const typeLabel = hasTools && hasRoomKeys ? "Equipment & Room Key" : hasRoomKeys ? "Room Key" : "Equipment";
   const showRelease = mode === "release" || mode === "complete";
   const showReturn = mode === "return" || mode === "complete";
+  const returnedCount = loans.filter((loan) => loan.status === "Returned").length;
+  const statuses = Array.from(new Set(loans.map((loan) => loan.status)));
+  const statusLabel = statuses.length === 1 ? statuses[0] : `${returnedCount}/${loans.length} returned`;
+  const borrowedLabel = primaryLoan.borrowed === "Awaiting release"
+    ? primaryLoan.requestedAt ?? "Awaiting release"
+    : primaryLoan.borrowed;
 
   return (
     <div className="backdrop print-form-backdrop" onMouseDown={onClose}>
       <section className="print-form-dialog" role="dialog" aria-modal="true" aria-label="Printable COAC borrowing form" onMouseDown={(event) => event.stopPropagation()}>
         <div className="print-form-toolbar no-print">
           <div>
-            <strong>COAC printable record</strong>
-            <small>{transactionNo}</small>
+            <strong>COAC printable borrowing record</strong>
+            <small>{transactionNo} · {loans.length} item{loans.length === 1 ? "" : "s"} on one form</small>
           </div>
           <div className="print-mode-tabs">
             <button type="button" className={mode === "release" ? "active" : ""} onClick={() => setMode("release")}>Release form</button>
@@ -4896,7 +5047,7 @@ function BorrowingPrintModal({
 
         <article className="coac-print-sheet">
           <header className="coac-print-header">
-            <div className="coac-print-monogram"><b>COAC</b><span>TOOL AID</span></div>
+            <div className="coac-print-monogram"><b>COAC</b><span>TOOL CRIB</span></div>
             <div className="coac-print-heading">
               <span>TECHNOLOGICAL UNIVERSITY OF THE PHILIPPINES - VISAYAS</span>
               <strong>COLLEGE OF AUTOMATION AND CONTROL</strong>
@@ -4911,38 +5062,50 @@ function BorrowingPrintModal({
 
           <section className="coac-print-meta">
             <div><span>TRANSACTION NO.</span><strong>{transactionNo}</strong></div>
-            <div><span>STATUS</span><strong>{loan.status}</strong></div>
-            <div><span>DATE / TIME BORROWED</span><strong>{loan.borrowed}</strong></div>
+            <div><span>STATUS</span><strong>{statusLabel}</strong></div>
+            <div><span>DATE / TIME BORROWED</span><strong>{borrowedLabel}</strong></div>
           </section>
 
           <section className="coac-print-block">
             <h2>Borrower Information</h2>
             <div className="coac-print-grid four">
-              <label><span>Full Name</span><strong>{loan.student}</strong></label>
-              <label><span>TUPV / Employee ID</span><strong>{loan.studentId}</strong></label>
-              <label><span>Program / Section</span><strong>{loan.program || "—"}</strong></label>
-              <label><span>Borrower Type</span><strong>{borrowerTypeOf(loan)}</strong></label>
+              <label><span>Full Name</span><strong>{primaryLoan.student}</strong></label>
+              <label><span>TUPV / Employee ID</span><strong>{primaryLoan.studentId}</strong></label>
+              <label><span>Program / Section</span><strong>{primaryLoan.program || "—"}</strong></label>
+              <label><span>Borrower Type</span><strong>{borrowerTypeOf(primaryLoan)}</strong></label>
             </div>
           </section>
 
           <section className="coac-print-block">
-            <h2>{kindOf(loan) === "Room Key" ? "Room / Key Released" : "Item / Equipment Released"}</h2>
-            <div className="coac-print-grid four">
-              <label><span>{kindOf(loan) === "Room Key" ? "Room / Key" : "Item"}</span><strong>{loan.item}</strong></label>
-              <label><span>Asset / Key ID</span><strong>{assetLabelOf(loan)}</strong></label>
-              <label><span>Due Date</span><strong>{kindOf(loan) === "Room Key" ? "Upon completion of room use" : loan.due || "—"}</strong></label>
-              <label><span>Condition Before Release</span><strong>Good / Serviceable</strong></label>
+            <h2>Items Released · {loans.length} item{loans.length === 1 ? "" : "s"}</h2>
+            <div className="coac-print-items-wrap">
+              <table className="coac-print-items">
+                <thead>
+                  <tr><th>#</th><th>Type</th><th>Item / Room</th><th>Asset / Key ID</th><th>Due</th><th>Condition</th></tr>
+                </thead>
+                <tbody>
+                  {loans.map((loan, index) => (
+                    <tr key={loan.id}>
+                      <td>{index + 1}</td>
+                      <td>{kindOf(loan)}</td>
+                      <td><strong>{loan.item}</strong>{loan.purpose && <small>Purpose: {loan.purpose}</small>}</td>
+                      <td>{assetLabelOf(loan)}</td>
+                      <td>{kindOf(loan) === "Room Key" ? "After room use" : loan.due || "—"}</td>
+                      <td>Good / Serviceable</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            {loan.purpose && <div className="coac-print-purpose"><span>Purpose</span><strong>{loan.purpose}</strong></div>}
           </section>
 
           {showRelease && (
             <section className="coac-print-block coac-release-section">
               <h2>Release Confirmation</h2>
-              <p className="coac-print-acknowledgement">I acknowledge receipt of the equipment or room key listed above in the stated condition and accept responsibility for its proper use, safekeeping, and return.</p>
+              <p className="coac-print-acknowledgement">I acknowledge receipt of all equipment and/or room keys listed in this transaction in the stated condition and accept responsibility for their proper use, safekeeping, and return.</p>
               <div className="coac-signature-grid">
-                <div><span className="signature-line" /><strong>{loan.student}</strong><small>Borrower's Signature</small><em>Date / Time: __________________</em></div>
-                <div><span className="signature-line" /><strong>{releasedBy}</strong><small>Releasing Officer</small><em>Released: {loan.borrowed}</em></div>
+                <div><span className="signature-line" /><strong>{primaryLoan.student}</strong><small>Borrower's Signature</small><em>Date / Time: __________________</em></div>
+                <div><span className="signature-line" /><strong>{releasedBy}</strong><small>Releasing Officer</small><em>Released: {borrowedLabel}</em></div>
               </div>
             </section>
           )}
@@ -4950,27 +5113,33 @@ function BorrowingPrintModal({
           {showReturn && (
             <section className="coac-print-block coac-return-section">
               <h2>Return &amp; Post-Return Evaluation</h2>
-              <div className="coac-return-meta">
-                <label><span>Date / Time Returned</span><strong>{returned ? loan.returnedAt ?? "Recorded return" : "____________________________"}</strong></label>
-                <label><span>Condition Upon Return</span><strong>{returned ? loan.returnCondition ?? "Returned" : "____________________________"}</strong></label>
+              <div className="coac-print-items-wrap return-items">
+                <table className="coac-print-items coac-return-items">
+                  <thead><tr><th>#</th><th>Item</th><th>Returned</th><th>Condition</th><th>Remarks / Evaluation</th></tr></thead>
+                  <tbody>
+                    {loans.map((loan, index) => (
+                      <tr key={loan.id}>
+                        <td>{index + 1}</td>
+                        <td><strong>{loan.item}</strong><small>{assetLabelOf(loan)}</small></td>
+                        <td>{loan.status === "Returned" ? loan.returnedAt ?? "Recorded" : "________________"}</td>
+                        <td>{loan.status === "Returned" ? loan.returnCondition ?? "Returned" : "________________"}</td>
+                        <td>{loan.status === "Returned" ? loan.returnRemarks || "No remarks" : "____________________________"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div className="coac-condition-checks" aria-label="Return condition options">
-                {['Good', 'Minor damage', 'Damaged', 'Missing part', 'Needs maintenance'].map((condition) => (
-                  <span key={condition}><b>{returned && loan.returnCondition?.toLowerCase() === condition.toLowerCase() ? "✓" : ""}</b>{condition}</span>
-                ))}
-              </div>
-              <div className="coac-print-remarks"><span>Remarks / Evaluation</span><p>{returned ? loan.returnRemarks || "No additional remarks recorded." : "________________________________________________________________________________\n________________________________________________________________________________"}</p></div>
               <div className="coac-signature-grid return">
-                <div><span className="signature-line" /><strong>{loan.student}</strong><small>Borrower's Signature</small></div>
+                <div><span className="signature-line" /><strong>{primaryLoan.student}</strong><small>Borrower's Signature</small></div>
                 <div><span className="signature-line" /><strong>{releasedBy}</strong><small>Received / Evaluated By</small></div>
               </div>
             </section>
           )}
 
           <footer className="coac-print-footer">
-            <span>COAC TOOL AID · OFFICIAL BORROWING RECORD</span>
+            <span>COAC TOOL CRIB · OFFICIAL BORROWING RECORD</span>
             <strong>{transactionNo}</strong>
-            <small>Generated from the COAC Laboratory Management System</small>
+            <small>One borrowing transaction, one form · {loans.length} recorded item{loans.length === 1 ? "" : "s"}</small>
           </footer>
         </article>
       </section>
@@ -5274,7 +5443,7 @@ function CloudLoading() {
       <section className="auth-card auth-loading" aria-live="polite">
         <img src="/coac-logo.png" alt="COAC logo" />
         <div className="cloud-spinner" />
-        <strong>Opening COAC Tool Aid</strong>
+        <strong>Opening Tool Crib</strong>
         <p>Connecting to the secure cloud record.</p>
         <div className="opening-luntian-brand">
           <span>Powered by</span>
@@ -5287,44 +5456,28 @@ function CloudLoading() {
 
 function CloudLogin({
   onSignedIn,
+  onBack,
 }: {
   onSignedIn: (user: Models.User<Models.Preferences>) => void;
+  onBack: () => void;
 }) {
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [name, setName] = useState("");
-  const [accountType, setAccountType] = useState<"student" | "professor">("student");
-  const [studentId, setStudentId] = useState("");
-  const [program, setProgram] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const signInAdmin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setBusy(true);
     setError("");
     try {
-      if (mode === "register") {
-        await account.create({
-          userId: ID.unique(),
-          email: email.trim(),
-          password,
-          name: name.trim() || "COAC Tool Aid User",
-        });
-      }
       await account.createEmailPasswordSession({ email: email.trim(), password });
-      if (mode === "register") {
-        await account.updatePrefs({
-          prefs: {
-            role: accountType,
-            studentId: studentId.trim().toUpperCase(),
-            program: program.trim(),
-            borrowerType: accountType === "professor" ? "Professor" : "Student",
-          },
-        });
+      const user = await account.get();
+      if (accessRoleOf(user) !== "admin") {
+        await account.deleteSession({ sessionId: "current" });
+        throw new Error("This account does not have COAC administrator access.");
       }
-      onSignedIn(await account.get());
+      onSignedIn(user);
     } catch (submitError) {
       setError(appwriteErrorMessage(submitError));
     } finally {
@@ -5333,112 +5486,35 @@ function CloudLogin({
   };
 
   return (
-    <main className="auth-screen">
-      <section className="auth-card">
-        <div className="auth-brand">
+    <main className="auth-screen admin-only-login-screen">
+      <section className="auth-card admin-only-login-card">
+        <div className="auth-brand admin-only-login-brand">
           <img src="/coac-logo.png" alt="COAC logo" />
           <div>
-            <span>COAC LABORATORY MANAGEMENT</span>
-            <h1>COAC Tool Aid</h1>
-            <p>Secure inventory, room-key access, borrowing requests, and transaction records.</p>
+            <span>COLLEGE OF AUTOMATION AND CONTROL</span>
+            <h1>Tool Crib</h1>
+            <p>Admin access or public borrowing.</p>
           </div>
         </div>
 
-        <div className="auth-tabs" role="tablist" aria-label="Account access">
-          <button
-            type="button"
-            className={mode === "login" ? "active" : ""}
-            onClick={() => {
-              setMode("login");
-              setError("");
-            }}
-          >
-            Sign in
-          </button>
-          <button
-            type="button"
-            className={mode === "register" ? "active" : ""}
-            onClick={() => {
-              setMode("register");
-              setError("");
-            }}
-          >
-            Create account
-          </button>
+        <div className="auth-tabs admin-entry-tabs" aria-label="Tool Crib access">
+          <button type="button" className="active" aria-current="page">Admin Sign In</button>
+          <button type="button" className="borrow-entry-button" onClick={onBack}>Borrow</button>
         </div>
 
-        <form className="auth-form" onSubmit={submit}>
-          {mode === "register" && (
-            <>
-              <label>
-                <span>Full name</span>
-                <input
-                  autoComplete="name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Juan Dela Cruz"
-                  required
-                />
-              </label>
-              <label>
-                <span>Account type</span>
-                <select value={accountType} onChange={(event) => setAccountType(event.target.value as "student" | "professor")}>
-                  <option value="student">Student</option>
-                  <option value="professor">Professor</option>
-                </select>
-              </label>
-              <label>
-                <span>{accountType === "professor" ? "Employee / faculty ID" : "TUPV ID"}</span>
-                <input
-                  value={studentId}
-                  onChange={(event) => setStudentId(event.target.value)}
-                  placeholder={accountType === "professor" ? "Faculty ID" : "TUPV-00-0000"}
-                  required
-                />
-              </label>
-              <label>
-                <span>{accountType === "professor" ? "Department / designation" : "Program, year & section"}</span>
-                <input
-                  value={program}
-                  onChange={(event) => setProgram(event.target.value)}
-                  placeholder={accountType === "professor" ? "COAC Faculty" : "BETMxT 3A"}
-                  required
-                />
-              </label>
-            </>
-          )}
+        <form className="auth-form admin-only-login-form" onSubmit={signInAdmin}>
           <label>
             <span>Email address</span>
-            <input
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="name@tup.edu.ph"
-              required
-            />
+            <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="admin@tup.edu.ph" required />
           </label>
           <label>
             <span>Password</span>
-            <input
-              type="password"
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="At least 8 characters"
-              minLength={8}
-              required
-            />
+            <input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Administrator password" minLength={8} required />
           </label>
           {error && <p className="auth-error" role="alert">{error}</p>}
-          <button className="primary auth-submit" disabled={busy}>
-            {busy ? "Please wait..." : mode === "login" ? "Sign in to dashboard" : "Create user account & continue"}
-          </button>
+          <button className="primary auth-submit" disabled={busy}>{busy ? "Signing in..." : "Sign in to Admin Dashboard"}</button>
         </form>
-
-        <p className="auth-note">
-          Your records are saved in the COAC Tool Aid cloud database and remain available on other devices.
-        </p>
+        <p className="auth-note">Only authorized Tool Crib administrators sign in. Students and faculty use <b>Borrow</b> without creating an account.</p>
       </section>
     </main>
   );
