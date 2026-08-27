@@ -1,37 +1,44 @@
-COAC cumulative update v27
-USER PORTAL + PRINTABLE BORROWING / RELEASE FORMS
+COAC Tool Aid cumulative update v28
+RICH USER PORTAL / ADMIN-VIBE PARITY
 
-Added user version
-- Existing legacy COAC accounts remain Admin so the current dashboard is preserved.
-- New registrations can be Student or Professor accounts.
-- User portal has only Home, Inventory, Rooms & Keys, and My Activity.
-- Users cannot add/delete inventory, change quantities, edit units, mark maintenance, return records, erase transactions, or see other borrowers in the UI.
-- User identity is locked to the signed-in account for requests.
-- Users can submit tool and room-key requests instead of directly releasing assets.
-- Overdue users are blocked from making a new request until the overdue record is cleared.
-- User portal only displays the signed-in user's activity and post-return remarks.
+This cumulative patch includes all v27 user portal + printable borrowing form changes, plus a full visual upgrade for student/professor accounts.
 
-Added admin approval flow
-- User requests enter Transactions as Pending.
-- Admin can Approve or Decline pending tool and room-key requests.
-- Approval captures the real release date/time and changes the asset/key to borrowed.
-- Pending requests do not reserve inventory until approved.
+v28 USER UI CHANGES
+- User portal now uses the same navy COAC top navigation language as the admin dashboard.
+- Real COAC logo header instead of the flat user-only mark.
+- Smooth 4-tab sliding navigation pill for Home / Inventory / Rooms & Keys / My Activity.
+- Account block now mirrors the admin cloud-account presentation while keeping user permissions limited.
+- Home now uses the same full-width COAC hero treatment as admin:
+  * blue/navy gradient
+  * grid background
+  * gear motif
+  * live date/time
+  * Luntian side branding
+  * COAC program showcase cards and logos
+- Added personal identity strip in the hero showing program, TUPV ID, and access level.
+- Added admin-style Personal Borrowing Overview zone.
+- Added detailed activity stat cards for Active / Pending / Overdue / Completed Returns.
+- Added richer Current Activity panel with type icons and status pills.
+- Added Available Now panel for live tool-unit, room-key, and personal-record counts.
+- Added My COAC Access profile panel with verified account identity details.
+- Added Live Room Display using the same room-tile language as the admin dashboard while preserving borrower privacy.
+- Inventory catalog cards are larger, deeper, and visually consistent with the admin dashboard.
+- Tool category controls are now larger card-style tabs.
+- Room & key cards are deeper and more polished while still hiding other borrowers' personal details.
+- My Activity table now uses richer admin-style table spacing, headers, hover states, and print actions.
+- Request modals were visually aligned to the richer COAC style.
+- Responsive/mobile layouts updated for the richer user dashboard.
 
-Added COAC printable form
-- A4 COAC-branded Equipment / Room Key Borrowing & Release Form.
-- Release Form, Return Form, and Complete Record print modes.
-- Auto transaction number, borrower ID/program, asset/key ID, borrowed date/time, due date, purpose, return evaluation, and remarks.
-- Default releasing officer: Sir John Ray.
-- Borrower and releasing/receiving signature lines.
-- COAC BSICE / BSMxE / BETMxT program marks in the form header.
-- Dashboard UI is hidden automatically when printing.
+PERMISSIONS REMAIN LIMITED
+- No user inventory editing/deletion.
+- No maintenance administration.
+- No other-borrower private data.
+- No admin transaction deletion or global history access.
+- User borrowing still uses request -> Tool Aid approval -> physical release.
 
-All v26 features retained
-- Post-return condition and remarks.
-- Numbered-unit maintenance handling.
-- Room-key maintenance handling.
-- Previous cumulative UI and inventory updates.
+PRINTING
+- v27 COAC A4 Release / Return / Complete Record forms remain included.
+- Default releasing officer remains Sir John Ray.
 
-IMPORTANT PRODUCTION NOTE
-- This build adds application-level role separation and recognizes an Appwrite `admin` label when present.
-- Before public/production rollout, configure Appwrite row/table permissions (and preferably admin labels) so users cannot inspect or mutate other users' records by bypassing the UI.
+ZIP STRUCTURE
+The ZIP begins directly with app/, public/, and UPDATE-PROOF.txt so it can be merged directly into the COAC DASH project root.

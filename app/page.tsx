@@ -4443,53 +4443,82 @@ function UserPortal({
   };
 
   return (
-    <div className="user-portal">
-      <header className="user-topbar">
-        <button className="user-brand" type="button" onClick={() => setView("Home")}>
-          <span className="user-brand-mark">COAC</span>
-          <span><strong>COAC Tool Aid</strong><small>User Portal</small></span>
+    <div className="user-portal user-portal-rich">
+      <header className="topbar user-rich-topbar">
+        <button className="brand user-rich-brand" type="button" onClick={() => setView("Home")}>
+          <img src="/coac-logo.png" alt="COAC logo" />
+          <span>
+            <strong>COAC Tool Aid</strong>
+            <small>{role === "professor" ? "Professor Portal" : "Student Portal"} · College of Automation and Control</small>
+          </span>
         </button>
-        <nav className="user-nav" aria-label="User portal">
+
+        <nav className="top-nav user-rich-nav" aria-label="User portal">
+          <span
+            className="top-nav-slider"
+            aria-hidden="true"
+            style={{ transform: `translateX(${userViews.indexOf(view) * 100}%)` }}
+          />
           {userViews.map((entry) => (
             <button key={entry} className={view === entry ? "active" : ""} onClick={() => setView(entry)}>
               {entry}
             </button>
           ))}
         </nav>
-        <div className="user-account">
-          <span className="user-account-copy">
-            <strong>{user.name || user.email}</strong>
-            <small>{role === "professor" ? "Professor" : "Student"} · {userId || "ID not set"}</small>
-          </span>
-          <button type="button" onClick={onSignOut}>Sign out</button>
-        </div>
-      </header>
 
-      <main className="user-main">
-        <section className="user-page-head">
-          <div>
-            <span>COAC SELF-SERVICE</span>
-            <h1>{pageTitle}</h1>
-            <p>
-              {view === "Home"
-                ? `${userProgram} · Request equipment and room keys, then track only your own activity.`
-                : view === "Inventory"
-                  ? "Browse available COAC equipment. Administrative editing is locked in user accounts."
-                  : view === "Rooms & Keys"
-                    ? "See room-key availability without exposing another borrower's private information."
-                    : "Your requests, active loans, returns, evaluations, and printable forms."}
-            </p>
-          </div>
+        <div className="actions user-rich-actions">
           {view !== "Home" && (
-            <label className="user-search">
+            <label className="search user-rich-search">
               <span>⌕</span>
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${view.toLowerCase()}...`} />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={`Search ${view.toLowerCase()}...`}
+              />
               {query && <button type="button" onClick={() => setQuery("")}>×</button>}
             </label>
           )}
-        </section>
+          <button className="cloud-account user-cloud-account" type="button" onClick={onSignOut} title="Sign out">
+            <span className="avatar">{(user.name || user.email).slice(0, 2).toUpperCase()}</span>
+            <span>
+              <strong>{user.name || user.email}</strong>
+              <small>{role === "professor" ? "Professor" : "Student"} · {userId || "ID not set"}</small>
+            </span>
+          </button>
+        </div>
+      </header>
 
-        {borrowingBlocked && (
+      <div className="mobile-nav user-rich-mobile-nav">
+        {userViews.map((entry) => (
+          <button key={entry} className={view === entry ? "active" : ""} onClick={() => setView(entry)}>
+            {entry}
+          </button>
+        ))}
+      </div>
+
+      <main className={`user-main ${view === "Home" ? "user-main-home" : "user-main-workspace"}`}>
+        {view !== "Home" && (
+          <section className="workspace-head user-workspace-head">
+            <div>
+              <span className="eyebrow">COAC {role === "professor" ? "PROFESSOR" : "STUDENT"} ACCESS</span>
+              <h1>{pageTitle}</h1>
+              <p>
+                {view === "Inventory"
+                  ? "Browse the same COAC inventory catalog used by Tool Aid, with administrative controls safely locked."
+                  : view === "Rooms & Keys"
+                    ? "Check live room-key availability and submit a release request without exposing another borrower's private information."
+                    : "Review your requests, active loans, return evaluations, and official printable borrowing forms."}
+              </p>
+            </div>
+            <div className="user-workspace-identity">
+              <span>{role === "professor" ? "PROFESSOR ACCOUNT" : "STUDENT ACCOUNT"}</span>
+              <strong>{user.name || user.email}</strong>
+              <small>{userProgram} · {userId || "ID not set"}</small>
+            </div>
+          </section>
+        )}
+
+        {borrowingBlocked && view !== "Home" && (
           <section className="user-restriction-banner">
             <div>
               <strong>New borrowing requests are temporarily restricted</strong>
@@ -4501,46 +4530,187 @@ function UserPortal({
 
         {view === "Home" && (
           <>
-            <section className="user-hero-card">
-              <div>
-                <span className="user-hero-eyebrow">COLLEGE OF AUTOMATION AND CONTROL</span>
-                <h2>Your tools. Your keys. Your record.</h2>
-                <p>Request what you need, wait for Tool Aid approval, and keep a clean personal borrowing trail.</p>
-                <div className="user-hero-actions">
-                  <button type="button" onClick={() => setView("Inventory")}>Request a tool →</button>
-                  <button type="button" className="secondary" onClick={() => setView("Rooms & Keys")}>Request a room key</button>
+            <section className="hero user-rich-hero">
+              <div className="gridlines" />
+              <div className="gear">⚙</div>
+              <span className="hero-luntian-side left" aria-hidden="true">POWERED BY LUNTIAN</span>
+              <span className="hero-luntian-side right" aria-hidden="true">POWERED BY LUNTIAN</span>
+              <HeroClock />
+              <div className="hero-shell">
+                <div className="hero-copy">
+                  <span className="eyebrow">COAC {role === "professor" ? "PROFESSOR" : "STUDENT"} PORTAL</span>
+                  <h1>
+                    Borrow with clarity.
+                    <br />
+                    Build with accountability.
+                  </h1>
+                  <p>
+                    Welcome back, {user.name || "COAC user"}. Browse the same live Tool Aid inventory, request exact units or room keys,
+                    and keep your complete COAC borrowing record in one place.
+                  </p>
+                  <div className="hero-actions">
+                    <button className="primary" type="button" onClick={() => setView("Inventory")}>
+                      Request equipment <b>→</b>
+                    </button>
+                    <button className="hero-secondary" type="button" onClick={() => setView("Rooms & Keys")}>
+                      Check rooms &amp; keys
+                    </button>
+                  </div>
+                  <div className="user-hero-account-line">
+                    <span><b>{userProgram}</b><small>Program / section</small></span>
+                    <span><b>{userId || "Not set"}</b><small>TUPV ID</small></span>
+                    <span><b>{role === "professor" ? "Professor" : "Student"}</b><small>Access level</small></span>
+                  </div>
                 </div>
-              </div>
-              <div className="user-course-marks" aria-label="COAC programs">
-                <img src="/course-logos/bsice-logo.png" alt="BSICE" />
-                <img src="/course-logos/bsmxe-logo.png" alt="BSMxE" />
-                <img src="/course-logos/betmxt-logo.png" alt="BETMxT" />
+
+                <aside className="hero-course-showcase user-course-showcase" aria-label="COAC programs">
+                  <div className="hero-course-showcase-head">
+                    <span className="hero-course-kicker">YOUR COAC HOME</span>
+                    <strong>One portal for tools, rooms, and records</strong>
+                    <small>Your access stays personal while the visual experience matches the full Tool Aid system.</small>
+                  </div>
+                  <div className="hero-course-grid">
+                    <article className="hero-course-card bsice">
+                      <div className="hero-course-logo-wrap"><img src="/course-logos/bsice-logo.png" alt="BSICE logo" className="hero-course-logo" /></div>
+                      <div className="hero-course-meta"><strong>BSICE</strong><span>Instrumentation and Control Engineering</span></div>
+                    </article>
+                    <article className="hero-course-card bsmxe">
+                      <div className="hero-course-logo-wrap"><img src="/course-logos/bsmxe-logo.png" alt="BSMxE logo" className="hero-course-logo" /></div>
+                      <div className="hero-course-meta"><strong>BSMxE</strong><span>Mechatronics Engineering</span></div>
+                    </article>
+                    <article className="hero-course-card betmxt">
+                      <div className="hero-course-logo-wrap"><img src="/course-logos/betmxt-logo.png" alt="BETMxT logo" className="hero-course-logo" /></div>
+                      <div className="hero-course-meta"><strong>BETMxT</strong><span>Mechatronics Technology</span></div>
+                    </article>
+                  </div>
+                </aside>
               </div>
             </section>
 
-            <section className="user-stat-grid">
-              <article><span>ACTIVE</span><strong>{myActive.length}</strong><small>Currently released to you</small></article>
-              <article><span>PENDING</span><strong>{myPending.length}</strong><small>Waiting for Tool Aid approval</small></article>
-              <article className={myOverdue.length ? "danger" : ""}><span>OVERDUE</span><strong>{myOverdue.length}</strong><small>Needs immediate return</small></article>
-              <article><span>RETURNED</span><strong>{myReturned.length}</strong><small>Completed records</small></article>
-            </section>
+            <section className="content dashboard-content user-home-dashboard">
+              {borrowingBlocked && (
+                <section className="user-restriction-banner user-restriction-rich">
+                  <div>
+                    <strong>New borrowing requests are temporarily restricted</strong>
+                    <p>Return your overdue item before requesting another tool or room key.</p>
+                  </div>
+                  <b>{myOverdue.length} overdue</b>
+                </section>
+              )}
 
-            <section className="user-panel">
-              <div className="user-panel-head">
-                <div><strong>Current activity</strong><small>Your newest requests and active releases</small></div>
-                <button type="button" onClick={() => setView("My Activity")}>Open my activity →</button>
-              </div>
-              <div className="user-activity-cards">
-                {myLoans.slice(0, 4).map((loan) => (
-                  <article key={loan.id}>
-                    <div><span className={`kind-tag ${kindOf(loan) === "Room Key" ? "room" : "tool"}`}>{kindOf(loan)}</span><Status value={loan.status} /></div>
-                    <strong>{loan.item}</strong>
-                    <small className="mono">{assetLabelOf(loan)}</small>
-                    <p>{loan.status === "Pending" ? `Requested ${loan.requestedAt ?? "recently"}` : `Borrowed ${loan.borrowed}`}</p>
-                  </article>
-                ))}
-                {myLoans.length === 0 && <div className="user-empty">No borrowing activity yet. Your first request will appear here.</div>}
-              </div>
+              <section className="dashboard-zone user-dashboard-zone">
+                <div className="dashboard-zone-head">
+                  <div className="dashboard-zone-title">
+                    <span className="dashboard-zone-icon tool-icon" aria-hidden="true">◎</span>
+                    <div>
+                      <span className="dashboard-zone-kicker">MY COAC ACTIVITY</span>
+                      <h2>Personal borrowing overview</h2>
+                      <p>Only activity connected to your account is shown here.</p>
+                    </div>
+                  </div>
+                  <button className="dashboard-zone-link" type="button" onClick={() => setView("My Activity")}>Open my records →</button>
+                </div>
+
+                <div className="stats tool-stats user-rich-stats">
+                  <Stat tone="orange" icon="↗" value={String(myActive.length)} label="My Active Loans" foot="Currently released to you" click={() => setView("My Activity")} />
+                  <Stat tone="blue" icon="◷" value={String(myPending.length)} label="Pending Requests" foot="Waiting for Tool Aid approval" click={() => setView("My Activity")} />
+                  <Stat tone="red" icon="!" value={String(myOverdue.length)} label="Overdue Items" foot="Return required before new requests" click={() => setView("My Activity")} />
+                  <Stat tone="green" icon="✓" value={String(myReturned.length)} label="Completed Returns" foot="Recorded in your history" click={() => setView("My Activity")} />
+                </div>
+
+                <div className="dashboard-operations-grid user-home-panels">
+                  <section className="panel user-rich-activity-panel">
+                    <div className="panel-head">
+                      <div><strong>Current activity</strong><small>Your newest requests and active releases</small></div>
+                      <button type="button" onClick={() => setView("My Activity")}>View all →</button>
+                    </div>
+                    <div className="user-rich-activity-list">
+                      {myLoans.slice(0, 5).map((loan) => (
+                        <button type="button" key={loan.id} onClick={() => setView("My Activity")}>
+                          <span className={`user-rich-activity-icon ${kindOf(loan) === "Room Key" ? "room" : "tool"}`}>{kindOf(loan) === "Room Key" ? "⌂" : "▣"}</span>
+                          <span className="user-rich-activity-copy">
+                            <strong>{loan.item}</strong>
+                            <small>{assetLabelOf(loan)} · {loan.status === "Pending" ? `Requested ${loan.requestedAt ?? "recently"}` : `Borrowed ${loan.borrowed}`}</small>
+                          </span>
+                          <Status value={loan.status} />
+                        </button>
+                      ))}
+                      {myLoans.length === 0 && (
+                        <div className="user-rich-empty-state">
+                          <span>▣</span>
+                          <strong>No borrowing activity yet</strong>
+                          <small>Your first approved request will appear here automatically.</small>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+
+                  <section className="panel user-ready-panel">
+                    <div className="panel-head">
+                      <div><strong>Available now</strong><small>Live COAC resources ready for requests</small></div>
+                      <span className="live-indicator"><i /> Live</span>
+                    </div>
+                    <div className="user-ready-metrics">
+                      <button type="button" onClick={() => setView("Inventory")}>
+                        <span className="user-ready-icon tool">▣</span>
+                        <span><strong>{tools.reduce((sum, tool) => sum + availableUnits(tool).length, 0)}</strong><small>tool units ready</small></span>
+                        <b>→</b>
+                      </button>
+                      <button type="button" onClick={() => setView("Rooms & Keys")}>
+                        <span className="user-ready-icon room">⌂</span>
+                        <span><strong>{rooms.filter((room) => room.status === "Available").length}</strong><small>room keys available</small></span>
+                        <b>→</b>
+                      </button>
+                      <button type="button" onClick={() => setView("My Activity")}>
+                        <span className="user-ready-icon record">≡</span>
+                        <span><strong>{myLoans.length}</strong><small>personal records</small></span>
+                        <b>→</b>
+                      </button>
+                    </div>
+                  </section>
+
+                  <section className="panel user-account-panel">
+                    <div className="panel-head">
+                      <div><strong>My COAC access</strong><small>Identity used on every borrowing request</small></div>
+                      <span className="user-account-verified">✓ VERIFIED</span>
+                    </div>
+                    <div className="user-account-profile">
+                      <span className="user-account-avatar">{(user.name || user.email).slice(0, 2).toUpperCase()}</span>
+                      <div><strong>{user.name || user.email}</strong><small>{user.email}</small></div>
+                    </div>
+                    <div className="user-account-details">
+                      <span><small>TUPV ID</small><strong>{userId || "Not set"}</strong></span>
+                      <span><small>Program / section</small><strong>{userProgram}</strong></span>
+                      <span><small>Account type</small><strong>{role === "professor" ? "Professor" : "Student"}</strong></span>
+                    </div>
+                    <p className="user-account-note">Borrower details are locked to this account when you submit a request. Tool Aid approval is still required before physical release.</p>
+                  </section>
+                </div>
+
+                <section className="panel dashboard-room-display user-room-display">
+                  <div className="panel-head">
+                    <div><strong>Live room display</strong><small>Availability only. Other borrowers remain private.</small></div>
+                    <button type="button" onClick={() => setView("Rooms & Keys")}>Open rooms &amp; keys →</button>
+                  </div>
+                  <div className="room-display-grid">
+                    {rooms.map((room) => {
+                      const isAvailable = room.status === "Available";
+                      return (
+                        <button
+                          type="button"
+                          key={room.id}
+                          className={`room-display-tile ${isAvailable ? "available" : "unavailable"}`}
+                          onClick={() => setView("Rooms & Keys")}
+                        >
+                          <i aria-hidden="true" />
+                          <strong>{room.room}</strong>
+                          <span>{isAvailable ? "Available" : room.status === "Maintenance" ? "Maintenance" : "Unavailable"}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              </section>
             </section>
           </>
         )}
@@ -4814,12 +4984,14 @@ function Stat({
   value,
   label,
   click,
+  foot,
 }: {
   tone: string;
   icon: string;
   value: string;
   label: string;
   click: () => void;
+  foot?: string;
 }) {
   return (
     <button className={`stat ${tone}`} onClick={click}>
@@ -4830,7 +5002,7 @@ function Stat({
       <strong>{value}</strong>
       <span className="stat-foot">
         <b className="stat-icon">{icon}</b>
-        <em>{tone === "blue" ? "System total" : tone === "green" ? "Ready for use" : tone === "orange" ? "Currently out" : "Needs attention"}</em>
+        <em>{foot ?? (tone === "blue" ? "System total" : tone === "green" ? "Ready for use" : tone === "orange" ? "Currently out" : "Needs attention")}</em>
       </span>
     </button>
   );
