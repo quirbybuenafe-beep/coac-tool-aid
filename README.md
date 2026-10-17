@@ -1,136 +1,42 @@
-# vinext-starter
+# coac-inventory
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+COAC equipment and room inventory source snapshots.
 
-## Prerequisites
+Prepared from locally available programming files, source archives, and accessible ChatGPT code excerpts on 2026-10-17 (Asia/Manila).
 
-- Node.js `>=22.13.0`
-- Linux with `flock`, `curl`, and GNU `timeout`
+## Contents
 
-## Sites Lifecycle
+67 selected files across 18 snapshots. Source folder structure is retained; redundant export wrappers were shortened where needed for Windows path compatibility. Different versions are retained; a current release has not been selected.
 
-The Sites lifecycle CLI runs the locked dependency install before returning this checkout. Edit the source under `app/`, then checkpoint when a coherent milestone is ready to inspect or share. The remote Sites builder runs `npm run build` against the pushed commit. Do not repeat install or build as a normal pre-checkpoint step.
+## Configuration and completeness
 
-This starter does not use `wrangler.jsonc`.
+Credentials and selected contact/configuration literals in these copies were replaced with placeholders such as `REDACTED_CONFIG_VALUE`. Restore your own local configuration before building. Personal-data files, unknown data files, binaries, media, models, dependencies, build output, and automation workflows were omitted. Some source snapshots may consequently have missing imports or assets.
 
-`install:ci` is intentionally a single, non-retrying `npm ci`. It refuses a concurrent install for the same project, consumes a matching image-seeded npm cache with `--prefer-offline` while retaining registry fallback for a missing cache object, otherwise downloads and verifies the complete vinext tarball recorded in `package-lock.json`, limits npm to one socket, and terminates a stalled install. `build` applies a short timeout and then validates the Sites artifact. These helpers target Linux and use GNU `timeout`; they are not native macOS scripts.
+Chat excerpts can be fragments and historical examples. They are not necessarily complete or current programs. The original local projects were not modified.
 
-Scripts that need writable project-scoped home, npm, XDG, and temporary paths use `scripts/sites-env.sh`. The `dev` and `start` scripts honor the caller's runtime environment and keep Wrangler logs inside the checkout. The generated `.sites-runtime/` directory is disposable and ignored by Git.
+Automated secret scanning is part of preparation, not a guarantee that every private item has been identified. These sanitized source snapshots were published with owner approval. Builds, deployments, and hardware behavior were not tested during collection.
 
-## Included Shape
+Existing license notices, where present, are retained. No new license is assigned by this collection.
 
-- edit site code under `app/`
-- `app/chatgpt-auth.ts` provides optional dispatch-owned ChatGPT sign-in helpers
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/index.ts` reads the D1 binding from the Cloudflare Worker environment
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+## Snapshots
 
-## Workspace Auth Headers
-
-OpenAI workspace sites can read the current user's email from
-`oai-authenticated-user-email`.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
-```
-
-## Optional Dispatch-Owned ChatGPT Sign-In
-
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
-
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
-
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
-
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Diagnostic Commands
-
-- `npm run install:ci`: perform the one bounded lockfile install
-- `npm run dev`: start the Vite/Vinext development server
-- `npm run build`: build and validate the deployable Sites artifact
-- `npm run start`: start the built Vinext application
-- `npm test`: build, validate, and verify the rendered development-preview metadata
-- `npm run validate:artifact`: recheck an existing artifact's manifest and ESM `default.fetch` export
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-Use build and validation commands for targeted diagnosis after a remote failure, not as part of the normal checkpoint path.
-
-The timeout defaults can be overridden for a controlled canary with `SITES_INSTALL_TIMEOUT`, `SITES_INSTALL_KILL_AFTER`, `SITES_BUILD_TIMEOUT`, and `SITES_BUILD_KILL_AFTER`. A timeout fails the command; the helpers never retry an unchanged install or build.
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
-
-Release note: Borrowers now use a true single-column full-width list view.
-
-## COAC Tool Aid Rooms & Keys Update
-
-- Added a dedicated Rooms & Keys navigation page.
-- Tracks room key status, current holder, expected return, and room-use purpose.
-- Students can borrow a room together with its assigned key.
-- Keys can be returned from Rooms & Keys, Borrowers, or Transactions.
-- Room borrowing records are saved locally under `coac-room-keys` and `coac-loans`.
-- Existing tool-only transaction data is automatically treated as a Tool record.
-
-## Visual Room Availability Board
-
-- Rooms are displayed as individual UI boxes rather than table rows.
-- Green boxes indicate vacant rooms with available keys.
-- Red boxes indicate borrowed rooms and show the current key holder.
-- Orange boxes indicate rooms or keys under maintenance.
-- Borrowing changes the room box to red; returning the key changes it back to green.
-
-## Separated Dashboard Overview
-
-- Tools and equipment now have a dedicated dashboard section with tool-only loans and availability.
-- Rooms and keys now have a separate visual dashboard map.
-- Green room boxes mean vacant and ready to borrow.
-- Red room boxes mean occupied and the assigned key is out.
-- Orange room boxes mean the room or key is under maintenance.
-- Room boxes include direct borrow and return-key actions.
+| Snapshot | Source | Files |
+|---|---|---:|
+| `c-4971adeced` | Chat excerpt | 2 |
+| `l-de269df002` | Local files | 33 |
+| `z-020547bf61` | Archive | 2 |
+| `z-057d37a578` | Archive | 2 |
+| `z-174be0f3d7` | Archive | 2 |
+| `z-1cf7eca321` | Archive | 2 |
+| `z-3cac66ad33` | Archive | 2 |
+| `z-48843fe1b3` | Archive | 2 |
+| `z-5dd44875d2` | Archive | 2 |
+| `z-6a54076f60` | Archive | 2 |
+| `z-7340ec2bd9` | Archive | 2 |
+| `z-ac6768c2d6` | Archive | 2 |
+| `z-b455e8c919` | Archive | 2 |
+| `z-cffab16c91` | Archive | 2 |
+| `z-d914ea54b1` | Archive | 2 |
+| `z-dc3b634127` | Archive | 2 |
+| `z-e6c4c8b80a` | Archive | 2 |
+| `z-efff9eab1b` | Archive | 2 |

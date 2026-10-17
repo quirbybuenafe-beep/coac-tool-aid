@@ -1,3 +1,0 @@
-COAC Tool Aid - Separated Tools and Room Status Dashboard
-
-The dashboard now separates Tools & Items from Rooms & Keys. Tool statistics, recent tool loans, and category availability stay inside their own section. Rooms use a compact visual status map: green means vacant, red means occupied with the key out, and orange means maintenance. Each room box shows its assigned key, current holder when occupied, expected return, and a direct borrow or return action.
